@@ -173,12 +173,8 @@
     display: inline-flex;
     align-items: center;
     gap: 0.5rem;
-}
-
-.embedded-map-container {
-    margin-top: 1rem;
+    text-decoration: none;
     width: 100%;
-    border-radius: var(--radius-md);
-    overflow: hidden;
-    box-shadow: var(--shadow-sm);
+    justify-content: center;
+    margin-top: 0.5rem;
 }

@@ -5,7 +5,6 @@ export default function ItineraryView({ dbData }) {
     // Sort unique dates from activities
     const uniqueDates = [...new Set(dbData.activities.map(a => a.date))].sort();
     const [selectedDate, setSelectedDate] = useState(uniqueDates[0] || null);
-    const [openMapId, setOpenMapId] = useState(null);
 
     const filteredActivities = dbData.activities
         .filter(a => a.date === selectedDate)
@@ -59,30 +58,18 @@ export default function ItineraryView({ dbData }) {
 
                                 {(activity.departure || activity.arrival) && (
                                     <div className="map-toggle-wrapper">
-                                        <button
+                                        <a
                                             className="btn btn-ghost map-toggle-btn"
-                                            onClick={() => setOpenMapId(openMapId === activity.id ? null : activity.id)}
+                                            href={
+                                                (activity.departure && activity.arrival)
+                                                    ? `https://www.google.com/maps/dir/?api=1&origin=${encodeURIComponent(activity.departure)}&destination=${encodeURIComponent(activity.arrival)}`
+                                                    : `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(activity.arrival || activity.departure)}`
+                                            }
+                                            target="_blank"
+                                            rel="noopener noreferrer"
                                         >
-                                            {openMapId === activity.id
-                                                ? ((activity.departure && activity.arrival) ? '🔼 길찾기 닫기' : '🔼 지도 닫기')
-                                                : ((activity.departure && activity.arrival) ? '🗺️ 길찾기 보기' : '🗺️ 지도 보기')}
-                                        </button>
-                                    </div>
-                                )}
-
-                                {openMapId === activity.id && (activity.departure || activity.arrival) && (
-                                    <div className="embedded-map-container">
-                                        <iframe
-                                            title={`map-${activity.id}`}
-                                            width="100%"
-                                            height="250"
-                                            style={{ border: 0, borderRadius: 'var(--radius-md)' }}
-                                            loading="lazy"
-                                            allowFullScreen
-                                            src={(activity.departure && activity.arrival)
-                                                ? `https://maps.google.com/maps?saddr=${encodeURIComponent(activity.departure)}&daddr=${encodeURIComponent(activity.arrival)}&ie=UTF8&output=embed`
-                                                : `https://maps.google.com/maps?q=${encodeURIComponent(activity.arrival || activity.departure)}&t=&z=15&ie=UTF8&iwloc=&output=embed`}
-                                        ></iframe>
+                                            {(activity.departure && activity.arrival) ? '🗺️ 길찾기 보기' : '🗺️ 지도 보기'}
+                                        </a>
                                     </div>
                                 )}
                             </div>
