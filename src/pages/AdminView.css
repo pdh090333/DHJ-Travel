@@ -1,0 +1,121 @@
+.admin-page {
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+    padding-top: 1rem;
+    width: 100%;
+}
+
+.admin-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 1rem;
+}
+
+.admin-actions {
+    display: flex;
+    gap: 0.5rem;
+}
+
+.file-upload {
+    cursor: pointer;
+    margin: 0;
+}
+
+.table-container {
+    overflow-x: auto;
+    background: var(--panel-bg);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-sm);
+}
+
+.data-table {
+    width: 100%;
+    border-collapse: collapse;
+    min-width: 800px;
+    /* Force scroll on small screens to maintain spreadsheet feel */
+}
+
+.data-table th,
+.data-table td {
+    padding: 0.75rem;
+    text-align: left;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.data-table th {
+    background: rgba(0, 0, 0, 0.02);
+    font-weight: 600;
+    color: var(--text-secondary);
+    font-size: 0.85rem;
+}
+
+@media (prefers-color-scheme: dark) {
+    .data-table th {
+        background: rgba(255, 255, 255, 0.02);
+    }
+}
+
+.data-table input {
+    width: 100%;
+    padding: 0.5rem;
+    border: 1px solid transparent;
+    border-radius: var(--radius-md);
+    background: transparent;
+    color: var(--text-primary);
+    font-size: 0.9rem;
+    transition: all 0.2s;
+}
+
+.data-table input:hover {
+    background: rgba(0, 0, 0, 0.02);
+}
+
+@media (prefers-color-scheme: dark) {
+    .data-table input:hover {
+        background: rgba(255, 255, 255, 0.05);
+    }
+}
+
+.data-table input:focus {
+    outline: none;
+    border-color: var(--primary);
+    background: var(--bg-color);
+}
+
+.btn-icon {
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    padding: 0.5rem;
+    border-radius: var(--radius-md);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s;
+    color: var(--text-secondary);
+}
+
+.btn-icon:hover {
+    background: var(--border-color);
+    color: var(--text-primary);
+}
+
+.btn-icon.danger:hover {
+    background: #FEF2F2;
+    color: var(--danger);
+}
+
+@media (prefers-color-scheme: dark) {
+    .btn-icon.danger:hover {
+        background: rgba(239, 68, 68, 0.1);
+    }
+}
+
+.add-row-btn {
+    margin-top: 0.5rem;
+    align-self: flex-start;
+}

@@ -1,0 +1,184 @@
+.itinerary-page {
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+    padding-top: 1rem;
+}
+
+.date-selector {
+    display: flex;
+    overflow-x: auto;
+    gap: 0.5rem;
+    padding-bottom: 0.5rem;
+    scrollbar-width: thin;
+    -webkit-overflow-scrolling: touch;
+}
+
+.date-selector::-webkit-scrollbar {
+    height: 4px;
+}
+
+.date-selector::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.date-selector::-webkit-scrollbar-thumb {
+    background-color: var(--border-color);
+    border-radius: 4px;
+}
+
+.timeline-container {
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+    position: relative;
+    padding-left: 1rem;
+}
+
+/* Vertical line for the timeline */
+.timeline-container::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: 2rem;
+    width: 2px;
+    background-color: var(--border-color);
+    z-index: 0;
+}
+
+.timeline-item {
+    display: flex;
+    gap: 1.5rem;
+    position: relative;
+    z-index: 1;
+    align-items: flex-start;
+}
+
+.time-block {
+    min-width: 4rem;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: var(--primary);
+    background: var(--bg-color);
+    padding: 0.2rem 0;
+}
+
+.time-separator {
+    color: var(--text-secondary);
+    font-size: 0.7rem;
+}
+
+.activity-card {
+    flex: 1;
+    background: var(--panel-bg);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-lg);
+    padding: 1.25rem;
+    box-shadow: var(--shadow-sm);
+    transition: transform 0.2s, box-shadow 0.2s;
+    position: relative;
+}
+
+/* Bullet on the timeline */
+.activity-card::before {
+    content: '';
+    position: absolute;
+    left: -2.35rem;
+    /* Position precisely on the line */
+    top: 1.5rem;
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    background-color: var(--primary);
+    border: 2px solid var(--bg-color);
+    z-index: 2;
+}
+
+.activity-card:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-md);
+}
+
+.activity-card h3 {
+    margin-bottom: 0.5rem;
+    font-size: 1.1rem;
+    color: var(--text-primary);
+}
+
+.location-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    color: var(--text-secondary);
+    text-decoration: none;
+    font-size: 0.9rem;
+    margin-bottom: 0.75rem;
+    padding: 0.25rem 0.5rem;
+    background: var(--bg-color);
+    border-radius: var(--radius-md);
+    transition: all 0.2s;
+}
+
+.location-link:hover {
+    color: var(--primary);
+    background: var(--border-color);
+}
+
+.notes {
+    font-size: 0.9rem;
+    color: var(--text-secondary);
+    line-height: 1.5;
+    background: rgba(0, 0, 0, 0.02);
+    padding: 0.75rem;
+    border-radius: var(--radius-md);
+}
+
+@media (prefers-color-scheme: dark) {
+    .notes {
+        background: rgba(255, 255, 255, 0.02);
+    }
+}
+
+.locations-wrapper {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    margin-bottom: 0.75rem;
+}
+
+.location-info {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.9rem;
+}
+
+.location-label {
+    font-weight: 600;
+    color: var(--text-secondary);
+    width: 2.5rem;
+}
+
+.map-toggle-wrapper {
+    margin-top: 0.5rem;
+}
+
+.map-toggle-btn {
+    font-size: 0.85rem;
+    padding: 0.4rem 0.8rem;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.embedded-map-container {
+    margin-top: 1rem;
+    width: 100%;
+    border-radius: var(--radius-md);
+    overflow: hidden;
+    box-shadow: var(--shadow-sm);
+}
