@@ -11,12 +11,24 @@ export default function ItineraryView({ dbData }) {
 
     const getLocationParam = (name, url) => {
         if (!url) return name;
-        // Try to extract coordinates: @lat,lng
+        
+        // 1. Try !3d and !4d (common in shared full URLs)
+        const d3match = url.match(/!3d(-?\d+\.\d+)/);
+        const d4match = url.match(/!4d(-?\d+\.\d+)/);
+        if (d3match && d4match) return `${d3match[1]},${d4match[2]}`;
+
+        // 2. Try @lat,lng
         const coordMatch = url.match(/@(-?\d+\.\d+),(-?\d+\.\d+)/);
         if (coordMatch) return `${coordMatch[1]},${coordMatch[2]}`;
-        // Try to extract place name from /place/Name/
+
+        // 3. Try q=lat,lng
+        const qCoordMatch = url.match(/[?&]q=(-?\d+\.\d+),(-?\d+\.\d+)/);
+        if (qCoordMatch) return `${qCoordMatch[1]},${qCoordMatch[2]}`;
+
+        // 4. Try extract place name from /place/Name/
         const placeMatch = url.match(/\/place\/([^/]+)/);
         if (placeMatch) return decodeURIComponent(placeMatch[1].replace(/\+/g, ' '));
+        
         return name;
     };
 
