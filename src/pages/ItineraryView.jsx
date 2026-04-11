@@ -5,10 +5,20 @@ export default function ItineraryView({ dbData }) {
     // Sort unique dates from activities
     const uniqueDates = [...new Set(dbData.activities.map(a => a.date))].sort();
     const [selectedDate, setSelectedDate] = useState(uniqueDates[0] || null);
-
     const filteredActivities = dbData.activities
         .filter(a => a.date === selectedDate)
         .sort((a, b) => a.startTime.localeCompare(b.startTime));
+
+    const getLocationParam = (name, url) => {
+        if (!url) return name;
+        // Try to extract coordinates: @lat,lng
+        const coordMatch = url.match(/@(-?\d+\.\d+),(-?\d+\.\d+)/);
+        if (coordMatch) return `${coordMatch[1]},${coordMatch[2]}`;
+        // Try to extract place name from /place/Name/
+        const placeMatch = url.match(/\/place\/([^/]+)/);
+        if (placeMatch) return decodeURIComponent(placeMatch[1].replace(/\+/g, ' '));
+        return name;
+    };
 
     return (
         <div className="itinerary-page">
@@ -62,8 +72,8 @@ export default function ItineraryView({ dbData }) {
                                             className="btn btn-ghost map-toggle-btn"
                                             href={
                                                 (activity.departure && activity.arrival)
-                                                    ? `https://www.google.com/maps/dir/?api=1&origin=${encodeURIComponent(activity.departure)}&destination=${encodeURIComponent(activity.arrival)}`
-                                                    : `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(activity.arrival || activity.departure)}`
+                                                    ? `https://www.google.com/maps/dir/?api=1&origin=${encodeURIComponent(getLocationParam(activity.departure, activity.departureUrl))}&destination=${encodeURIComponent(getLocationParam(activity.arrival, activity.arrivalUrl))}`
+                                                    : `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(getLocationParam(activity.arrival || activity.departure, activity.arrivalUrl || activity.departureUrl))}`
                                             }
                                             target="_blank"
                                             rel="noopener noreferrer"
