@@ -200,6 +200,12 @@ export default function AdminView({ dbData, refreshDb, selectedTripId: initialTr
                     </div>
 
                     <div id="external-candidates" className="candidates-list">
+                        {isDraggingOverWishlist && (
+                            <div className="drop-placeholder">
+                                <Plus size={24} />
+                                <span>이곳에 놓으면 후보지로 이동합니다</span>
+                            </div>
+                        )}
                         <p className="hint">💡 아래 항목을 달력으로 끌어다 놓으세요!</p>
                         {currentCandidates.map(c => (
                             <div

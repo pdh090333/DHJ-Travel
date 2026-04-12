@@ -73,3 +73,10 @@
 .fc-event-main {
     padding: 2px 4px !important;
 }
+
+/* Ensure dragging event doesn't block hit testing */
+.fc-event-dragging {
+    pointer-events: none !important;
+    opacity: 0.8 !important;
+    z-index: 9999 !important;
+}
