@@ -5,8 +5,18 @@ import './AdminView.css';
 
 export default function AdminView({ dbData, refreshDb, selectedTripId: initialTripId }) {
     const [selectedTripId, setSelectedTripId] = useState(initialTripId || dbData.trips[0]?.id || '');
+    const [selectedTripTitle, setSelectedTripTitle] = useState(
+        dbData.trips.find(t => t.id === (initialTripId || dbData.trips[0]?.id))?.title || ''
+    );
     const [activities, setActivities] = useState([...dbData.activities]);
     const [saving, setSaving] = useState(false);
+
+    // Update title when selectedTripId changes
+    const handleTripSelect = (id) => {
+        setSelectedTripId(id);
+        const trip = dbData.trips.find(t => t.id === id);
+        setSelectedTripTitle(trip?.title || '');
+    };
 
     // Update local state when selectedTripId or dbData changes
     const currentTripActivities = activities.filter(a => a.tripId === selectedTripId);
@@ -39,6 +49,13 @@ export default function AdminView({ dbData, refreshDb, selectedTripId: initialTr
         if (!selectedTripId) return;
         setSaving(true);
         try {
+            // 1. Save trip title if changed
+            const currentTrip = dbData.trips.find(t => t.id === selectedTripId);
+            if (currentTrip && currentTrip.title !== selectedTripTitle) {
+                await saveTrip({ ...currentTrip, title: selectedTripTitle });
+            }
+
+            // 2. Save activities
             await saveActivities(selectedTripId, currentTripActivities);
             await refreshDb();
             alert('저장 완료!');
@@ -89,13 +106,20 @@ export default function AdminView({ dbData, refreshDb, selectedTripId: initialTr
                 <div className="trip-manager">
                     <select
                         value={selectedTripId}
-                        onChange={(e) => setSelectedTripId(e.target.value)}
+                        onChange={(e) => handleTripSelect(e.target.value)}
                         className="trip-selector-admin"
                     >
                         {dbData.trips.map(t => (
                             <option key={t.id} value={t.id}>{t.title}</option>
                         ))}
                     </select>
+                    <input
+                        type="text"
+                        value={selectedTripTitle}
+                        onChange={(e) => setSelectedTripTitle(e.target.value)}
+                        placeholder="여행 이름 수정"
+                        className="trip-title-input"
+                    />
                     <button className="btn btn-ghost" onClick={handleAddNewTrip} title="New Trip">
                         <Plus size={16} />
                     </button>
