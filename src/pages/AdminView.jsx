@@ -5,7 +5,7 @@ import { Draggable } from '@fullcalendar/interaction';
 import CalendarView from './CalendarView';
 import './AdminView.css';
 
-export default function AdminView({ dbData, refreshDb, selectedTripId: initialTripId }) {
+export default function AdminView({ dbData, refreshDb, selectedTripId: initialTripId, onUnschedule }) {
     const [selectedTripId, setSelectedTripId] = useState(initialTripId || dbData.trips[0]?.id || '');
     const [selectedTripTitle, setSelectedTripTitle] = useState(
         dbData.trips.find(t => t.id === (initialTripId || dbData.trips[0]?.id))?.title || ''
@@ -162,6 +162,7 @@ export default function AdminView({ dbData, refreshDb, selectedTripId: initialTr
                             selectedTripId={selectedTripId}
                             refreshDb={refreshDb}
                             onDragOverWishlist={setIsDraggingOverWishlist}
+                            onUnschedule={onUnschedule}
                         />
                     ) : (
                         <div style={{ textAlign: 'center', padding: '3rem', color: 'var(--text-secondary)' }}>

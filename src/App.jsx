@@ -75,6 +75,40 @@ function App() {
     }
   };
 
+  const handleUnscheduleActivity = async (tripId, activityId) => {
+    // Optimistic Update: Remove from activities and add to candidates locally
+    const activityToMove = dbData.activities.find(a => a.id === activityId);
+    if (!activityToMove) return;
+
+    const newCandidate = {
+      id: generateId(),
+      tripId,
+      title: activityToMove.title,
+      url: activityToMove.arrivalUrl || activityToMove.departureUrl || '',
+      notes: activityToMove.notes || ''
+    };
+
+    setDbData(prev => ({
+      ...prev,
+      activities: prev.activities.filter(a => a.id !== activityId),
+      candidates: [...prev.candidates, newCandidate]
+    }));
+
+    try {
+      // Background DB operations
+      const { saveCandidate, saveActivities } = await import('./db');
+      await saveCandidate(newCandidate);
+      const remainingActivities = dbData.activities.filter(a => a.id !== activityId);
+      await saveActivities(tripId, remainingActivities);
+      // Final sync to be sure
+      await refreshDb();
+    } catch (e) {
+      console.error('Failed to unschedule activity:', e);
+      alert('일정 취소 중 오류가 발생했습니다.');
+      await refreshDb(); // Revert on failure
+    }
+  };
+
   if (loading) {
     return (
       <div className="loading-screen">
@@ -100,7 +134,12 @@ function App() {
       />
       <main className="container animate-slide-up">
         {currentView === 'admin' ? (
-          <AdminView dbData={dbData} refreshDb={refreshDb} selectedTripId={selectedTripId} />
+          <AdminView
+            dbData={dbData}
+            refreshDb={refreshDb}
+            selectedTripId={selectedTripId}
+            onUnschedule={handleUnscheduleActivity}
+          />
         ) : (
           !selectedTripId ? (
             <TripSelect
