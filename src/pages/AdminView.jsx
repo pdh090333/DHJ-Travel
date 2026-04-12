@@ -11,7 +11,7 @@ export default function AdminView({ dbData, refreshDb, selectedTripId: initialTr
         dbData.trips.find(t => t.id === (initialTripId || dbData.trips[0]?.id))?.title || ''
     );
 
-    const [newCandidate, setNewCandidate] = useState({ title: '', url: '', notes: '' });
+    const [newCandidate, setNewCandidate] = useState({ title: '', url: '', notes: '', imageUrl: '' });
     const [isDraggingOverWishlist, setIsDraggingOverWishlist] = useState(false);
 
     // Initialize Draggable for candidates
@@ -190,6 +190,12 @@ export default function AdminView({ dbData, refreshDb, selectedTripId: initialTr
                             value={newCandidate.url}
                             onChange={(e) => setNewCandidate({ ...newCandidate, url: e.target.value })}
                         />
+                        <input
+                            type="text"
+                            placeholder="이미지 URL (선택)"
+                            value={newCandidate.imageUrl}
+                            onChange={(e) => setNewCandidate({ ...newCandidate, imageUrl: e.target.value })}
+                        />
                         <textarea
                             placeholder="메모 (선택)"
                             value={newCandidate.notes}
@@ -212,8 +218,16 @@ export default function AdminView({ dbData, refreshDb, selectedTripId: initialTr
                             <div
                                 key={c.id}
                                 className="candidate-item candidate-item-draggable"
-                                data-event={JSON.stringify(c)}
+                                data-event={JSON.stringify({
+                                    ...c,
+                                    imageUrl: c.imageUrl || ''
+                                })}
                             >
+                                {c.imageUrl && (
+                                    <div className="candidate-thumbnail">
+                                        <img src={c.imageUrl} alt={c.title} />
+                                    </div>
+                                )}
                                 <div className="candidate-info">
                                     <span className="candidate-title">{c.title}</span>
                                     {c.url && <a href={c.url} target="_blank" rel="noopener noreferrer"><ExternalLink size={14} /></a>}

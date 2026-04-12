@@ -12,7 +12,9 @@ export default function ActivityModal({ activity, onClose, onSave, onDelete, onM
         arrival: '',
         departureUrl: '',
         arrivalUrl: '',
-        notes: ''
+        notes: '',
+        imageUrl: '',
+        reviewUrl: ''
     });
 
     useEffect(() => {
@@ -24,7 +26,9 @@ export default function ActivityModal({ activity, onClose, onSave, onDelete, onM
                 arrival: activity.arrival || '',
                 departureUrl: activity.departureUrl || '',
                 arrivalUrl: activity.arrivalUrl || '',
-                notes: activity.notes || ''
+                notes: activity.notes || '',
+                imageUrl: activity.imageUrl || '',
+                reviewUrl: activity.reviewUrl || ''
             });
         }
     }, [activity]);
@@ -89,6 +93,21 @@ export default function ActivityModal({ activity, onClose, onSave, onDelete, onM
                             <label>도착지 구글맵 링크</label>
                             <input type="url" name="arrivalUrl" value={formData.arrivalUrl} onChange={handleChange} placeholder="https://goo.gl/maps/..." />
                         </div>
+                    </div>
+
+                    <div className="form-group">
+                        <label>이미지 URL (참고 사진)</label>
+                        <input type="url" name="imageUrl" value={formData.imageUrl} onChange={handleChange} placeholder="https://... (이미지 주소)" />
+                        {formData.imageUrl && (
+                            <div className="modal-image-preview">
+                                <img src={formData.imageUrl} alt="Preview" />
+                            </div>
+                        )}
+                    </div>
+
+                    <div className="form-group">
+                        <label>구글 맵 리뷰 링크 (선택)</label>
+                        <input type="url" name="reviewUrl" value={formData.reviewUrl} onChange={handleChange} placeholder="https://maps.app.goo.gl/..." />
                     </div>
 
                     <div className="form-group">

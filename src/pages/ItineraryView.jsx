@@ -110,12 +110,18 @@ export default function ItineraryView({ dbData, selectedTripId }) {
                                     )}
                                 </div>
 
+                                {activity.imageUrl && (
+                                    <div className="activity-image-wrapper">
+                                        <img src={activity.imageUrl} alt={activity.title} className="activity-image" />
+                                    </div>
+                                )}
+
                                 {activity.notes && <p className="notes">{activity.notes}</p>}
 
-                                {(activity.departure || activity.arrival) && (
-                                    <div className="map-toggle-wrapper">
+                                <div className="activity-meta-actions">
+                                    {(activity.departure || activity.arrival) && (
                                         <a
-                                            className="btn btn-ghost map-toggle-btn"
+                                            className="btn btn-ghost action-btn"
                                             href={
                                                 (activity.departure && activity.arrival)
                                                     ? buildDirectionsUrl(activity)
@@ -124,10 +130,21 @@ export default function ItineraryView({ dbData, selectedTripId }) {
                                             target="_blank"
                                             rel="noopener noreferrer"
                                         >
-                                            {(activity.departure && activity.arrival) ? '🗺️ 길찾기 보기' : '🗺️ 지도 보기'}
+                                            🗺️ {(activity.departure && activity.arrival) ? '길찾기' : '지도 보기'}
                                         </a>
-                                    </div>
-                                )}
+                                    )}
+
+                                    {activity.reviewUrl && (
+                                        <a
+                                            className="btn btn-ghost action-btn"
+                                            href={activity.reviewUrl}
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                        >
+                                            ⭐ 구글 리뷰
+                                        </a>
+                                    )}
+                                </div>
                             </div>
                         </div>
                     ))
@@ -147,6 +164,11 @@ export default function ItineraryView({ dbData, selectedTripId }) {
                                 <div key={candidate.id} className="wishlist-card">
                                     <div className="wishlist-card-content">
                                         <h4>{candidate.title}</h4>
+                                        {candidate.imageUrl && (
+                                            <div className="wishlist-thumbnail-card">
+                                                <img src={candidate.imageUrl} alt={candidate.title} />
+                                            </div>
+                                        )}
                                         {candidate.notes && <p className="wishlist-notes">{candidate.notes}</p>}
                                     </div>
                                     {candidate.url && (
