@@ -1,13 +1,20 @@
 import React from 'react';
-import { Settings, Map as MapIcon, CalendarDays } from 'lucide-react';
+import { Settings, Map as MapIcon, CalendarDays, ArrowLeft } from 'lucide-react';
 
-export default function Header({ currentView, onViewChange }) {
+export default function Header({ currentView, onViewChange, onBackToTrips, selectedTripId, dbData }) {
+    const currentTrip = dbData?.trips?.find(t => t.id === selectedTripId);
+
     return (
         <header className="header-glass">
             <div className="header-content">
-                <div className="app-title" onClick={() => onViewChange('itinerary')} style={{ cursor: 'pointer' }}>
+                <div className="app-title" onClick={onBackToTrips} style={{ cursor: 'pointer' }}>
                     <MapIcon size={24} color="var(--primary)" />
-                    DHJ 여행 계획표
+                    {selectedTripId ? (
+                        <div className="trip-context">
+                            <span className="back-hint"><ArrowLeft size={16} /></span>
+                            <span className="trip-title">{currentTrip?.title || 'TravelMate'}</span>
+                        </div>
+                    ) : 'TravelMate'}
                 </div>
                 <div className="nav-links">
                     <button

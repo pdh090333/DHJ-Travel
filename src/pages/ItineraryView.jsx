@@ -1,11 +1,22 @@
 import React, { useState } from 'react';
 import './ItineraryView.css';
 
-export default function ItineraryView({ dbData }) {
+export default function ItineraryView({ dbData, selectedTripId }) {
+    const currentTrip = dbData.trips.find(t => t.id === selectedTripId);
+    const tripActivities = dbData.activities.filter(a => a.tripId === selectedTripId);
+
     // Sort unique dates from activities
-    const uniqueDates = [...new Set(dbData.activities.map(a => a.date))].sort();
+    const uniqueDates = [...new Set(tripActivities.map(a => a.date))].sort();
     const [selectedDate, setSelectedDate] = useState(uniqueDates[0] || null);
-    const filteredActivities = dbData.activities
+
+    // Auto-select first date if current selection is not in the new list
+    React.useEffect(() => {
+        if (uniqueDates.length > 0 && (!selectedDate || !uniqueDates.includes(selectedDate))) {
+            setSelectedDate(uniqueDates[0]);
+        }
+    }, [uniqueDates, selectedDate]);
+
+    const filteredActivities = tripActivities
         .filter(a => a.date === selectedDate)
         .sort((a, b) => a.startTime.localeCompare(b.startTime));
 

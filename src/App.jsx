@@ -3,11 +3,13 @@ import Header from './components/Header';
 import Navigation from './components/Navigation';
 import ItineraryView from './pages/ItineraryView';
 import AdminView from './pages/AdminView';
-import { loadDB, ensureDefaultTrip } from './db';
+import TripSelect from './pages/TripSelect';
+import { loadDB, ensureDefaultTrip, generateId, saveTrip } from './db';
 import './index.css';
 
 function App() {
   const [currentView, setCurrentView] = useState('itinerary');
+  const [selectedTripId, setSelectedTripId] = useState(null);
   const [dbData, setDbData] = useState({ trips: [], activities: [] });
   const [loading, setLoading] = useState(true);
 
@@ -37,6 +39,32 @@ function App() {
     }
   };
 
+  const handleSelectTrip = (tripId) => {
+    setSelectedTripId(tripId);
+    setCurrentView('itinerary');
+  };
+
+  const handleAddTrip = async () => {
+    const title = prompt('새로운 여행 이름을 입력하세요:', '2025 새로운 여행');
+    if (!title) return;
+
+    const newTrip = {
+      id: generateId(),
+      title,
+      startDate: '',
+      endDate: ''
+    };
+
+    try {
+      await saveTrip(newTrip);
+      await refreshDb();
+      setSelectedTripId(newTrip.id);
+      setCurrentView('itinerary');
+    } catch (e) {
+      alert('여행 추가 실패: ' + e.message);
+    }
+  };
+
   if (loading) {
     return (
       <div className="loading-screen">
@@ -46,15 +74,29 @@ function App() {
     );
   }
 
+  const showTripSelect = !selectedTripId && currentView === 'itinerary';
+
   return (
     <>
-      <Header currentView={currentView} onViewChange={setCurrentView} />
+      <Header
+        currentView={currentView}
+        onViewChange={setCurrentView}
+        onBackToTrips={() => setSelectedTripId(null)}
+        selectedTripId={selectedTripId}
+      />
       <main className="container animate-slide-up">
-        {currentView === 'itinerary' && (
-          <ItineraryView dbData={dbData} />
+        {showTripSelect && (
+          <TripSelect
+            trips={dbData.trips}
+            onSelectTrip={handleSelectTrip}
+            onAddTrip={handleAddTrip}
+          />
+        )}
+        {!showTripSelect && currentView === 'itinerary' && (
+          <ItineraryView dbData={dbData} selectedTripId={selectedTripId} />
         )}
         {currentView === 'admin' && (
-          <AdminView dbData={dbData} refreshDb={refreshDb} />
+          <AdminView dbData={dbData} refreshDb={refreshDb} selectedTripId={selectedTripId} />
         )}
       </main>
       <Navigation currentView={currentView} onViewChange={setCurrentView} />

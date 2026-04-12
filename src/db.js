@@ -32,16 +32,25 @@ export const loadDB = async () => {
     return { trips, activities };
 };
 
-// ─── Save all activities (batch write) ─────────────────
-export const saveActivities = async (activities) => {
-    // 1. Delete existing activities
-    const snapshot = await getDocs(collection(db, ACTIVITIES_COL));
+// ─── Save activities for a specific trip ─────────────────
+export const saveActivities = async (tripId, activities) => {
+    if (!tripId) throw new Error("tripId is required to save activities");
+
+    // 1. Delete existing activities FOR THIS TRIP ONLY
+    const q = collection(db, ACTIVITIES_COL);
+    const snapshot = await getDocs(q);
     const batch = writeBatch(db);
-    snapshot.docs.forEach(d => batch.delete(d.ref));
+
+    snapshot.docs.forEach(d => {
+        if (d.data().tripId === tripId) {
+            batch.delete(d.ref);
+        }
+    });
+
     // 2. Write new activities
     activities.forEach(act => {
         const ref = doc(db, ACTIVITIES_COL, act.id);
-        batch.set(ref, act);
+        batch.set(ref, { ...act, tripId }); // Ensure tripId is set
     });
     await batch.commit();
 };
@@ -51,6 +60,24 @@ export const saveTrip = async (trip) => {
     await setDoc(doc(db, TRIPS_COL, trip.id), trip);
 };
 
+// ─── Delete a trip and its activities ──────────────────
+export const deleteTrip = async (tripId) => {
+    const batch = writeBatch(db);
+
+    // 1. Delete trip doc
+    batch.delete(doc(db, TRIPS_COL, tripId));
+
+    // 2. Delete associated activities
+    const activitiesSnap = await getDocs(collection(db, ACTIVITIES_COL));
+    activitiesSnap.docs.forEach(d => {
+        if (d.data().tripId === tripId) {
+            batch.delete(d.ref);
+        }
+    });
+
+    await batch.commit();
+};
+
 // ─── Ensure at least one default trip exists ───────────
 export const ensureDefaultTrip = async () => {
     const snap = await getDocs(collection(db, TRIPS_COL));
@@ -58,7 +85,7 @@ export const ensureDefaultTrip = async () => {
         const tripId = generateId();
         const trip = {
             id: tripId,
-            title: 'My First Trip',
+            title: '첫 번째 여행',
             startDate: '',
             endDate: ''
         };

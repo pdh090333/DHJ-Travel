@@ -92,6 +92,39 @@ body {
   gap: 0.5rem;
 }
 
+.trip-context {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 1.25rem;
+  animation: fadeIn 0.3s ease;
+}
+
+.back-hint {
+  color: var(--primary);
+  opacity: 0.6;
+  display: flex;
+  align-items: center;
+}
+
+.app-title:hover .back-hint {
+  opacity: 1;
+  transform: translateX(-2px);
+  transition: all 0.2s ease;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateX(5px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
 .nav-links {
   display: flex;
   gap: 1rem;
