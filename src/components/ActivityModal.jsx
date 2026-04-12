@@ -33,9 +33,30 @@ export default function ActivityModal({ activity, onClose, onSave, onDelete, onM
         }
     }, [activity]);
 
+    const extractDirectImageUrl = (url) => {
+        if (!url) return '';
+        // If it's already a direct Google CDN link, return as is
+        if (url.includes('lh3.googleusercontent.com')) return url;
+
+        // Try to extract from Google Maps photo gallery URLs
+        // Pattern: ...!6shttps:%2F%2Flh3.googleusercontent.com%2F...
+        const encodedMatch = url.match(/!6s(https%3A%2F%2Flh3\.googleusercontent\.com%2F[^!&]+)/);
+        if (encodedMatch) {
+            return decodeURIComponent(encodedMatch[1]);
+        }
+
+        return url;
+    };
+
     const handleChange = (e) => {
         const { name, value } = e.target;
-        setFormData(prev => ({ ...prev, [name]: value }));
+        let finalValue = value;
+
+        if (name === 'imageUrl') {
+            finalValue = extractDirectImageUrl(value);
+        }
+
+        setFormData(prev => ({ ...prev, [name]: finalValue }));
     };
 
     const handleSubmit = (e) => {

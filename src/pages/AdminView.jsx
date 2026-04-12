@@ -33,6 +33,14 @@ export default function AdminView({ dbData, refreshDb, selectedTripId: initialTr
         }
     }, [dbData.candidates]); // Re-init when list changes
 
+    const extractDirectImageUrl = (url) => {
+        if (!url) return '';
+        if (url.includes('lh3.googleusercontent.com')) return url;
+        const encodedMatch = url.match(/!6s(https%3A%2F%2Flh3\.googleusercontent\.com%2F[^!&]+)/);
+        if (encodedMatch) return decodeURIComponent(encodedMatch[1]);
+        return url;
+    };
+
     // Auto-save title
     useEffect(() => {
         const timeout = setTimeout(() => {
@@ -194,7 +202,7 @@ export default function AdminView({ dbData, refreshDb, selectedTripId: initialTr
                             type="text"
                             placeholder="이미지 URL (선택)"
                             value={newCandidate.imageUrl}
-                            onChange={(e) => setNewCandidate({ ...newCandidate, imageUrl: e.target.value })}
+                            onChange={(e) => setNewCandidate({ ...newCandidate, imageUrl: extractDirectImageUrl(e.target.value) })}
                         />
                         <textarea
                             placeholder="메모 (선택)"
