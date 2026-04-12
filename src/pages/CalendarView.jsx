@@ -1,27 +1,24 @@
-import React from 'react';
+import React, { useState } from 'react';
 import FullCalendar from '@fullcalendar/react';
 import timeGridPlugin from '@fullcalendar/timegrid';
 import interactionPlugin from '@fullcalendar/interaction';
+import ActivityModal from '../components/ActivityModal';
 import { saveActivities, generateId } from '../db';
 import './CalendarView.css';
 
 export default function CalendarView({ dbData, selectedTripId, refreshDb }) {
-    // Filter activities for the selected trip
+    const [selectedActivity, setSelectedActivity] = useState(null);
     const activities = dbData.activities.filter(a => a.tripId === selectedTripId);
 
-    // Identify first date to display the calendar correctly
     const firstDate = activities
         .map(a => a.date)
         .filter(Boolean)
         .sort()[0] || new Date().toLocaleDateString('en-CA');
 
-    // Map database activities to FullCalendar events
     const events = activities.map(act => {
-        // Handle cases where time might be missing
         const startStr = act.date && act.startTime ? `${act.date}T${act.startTime}:00` : act.date ? `${act.date}T00:00:00` : null;
         let endStr = act.date && act.endTime ? `${act.date}T${act.endTime}:00` : null;
 
-        // If start exists but no end, default to 1 hour later for visual purposes
         if (startStr && !endStr) {
             const startObj = new Date(startStr);
             startObj.setHours(startObj.getHours() + 1);
@@ -35,17 +32,16 @@ export default function CalendarView({ dbData, selectedTripId, refreshDb }) {
             end: endStr,
             backgroundColor: 'var(--primary)',
             borderColor: 'var(--primary)',
+            extendedProps: act // store original activity data to use on click
         };
-    }).filter(e => e.start); // Only render events that have at least a start date
+    }).filter(e => e.start);
 
-    // Handle drag and drop or resizing
+    // 1. Drag and drop moving/resizing
     const handleEventChange = async (changeInfo) => {
         const { event } = changeInfo;
         const newStart = event.start;
-        const newEnd = event.end || new Date(newStart.getTime() + 60 * 60 * 1000); // Default 1 hour if no end
+        const newEnd = event.end || new Date(newStart.getTime() + 60 * 60 * 1000);
 
-        // Local time formatting for Korean timezone/users (using en-CA for YYYY-MM-DD compatibility)
-        // Note: FullCalendar gives us raw Date objects in local time as we set timeZone="local"
         const offset = newStart.getTimezoneOffset() * 60000;
         const localStart = new Date(newStart.getTime() - offset);
         const localEnd = new Date(newEnd.getTime() - offset);
@@ -69,13 +65,16 @@ export default function CalendarView({ dbData, selectedTripId, refreshDb }) {
         }
     };
 
-    // Handle creating a new event via click and drag on empty space
-    const handleDateSelect = async (selectInfo) => {
-        const title = prompt('새로운 일정 이름을 입력하세요:');
-        const calendarApi = selectInfo.view.calendar;
-        calendarApi.unselect(); // clear selection
+    // 2. Click existing activity to open modal
+    const handleEventClick = (clickInfo) => {
+        const existingActivity = clickInfo.event.extendedProps;
+        setSelectedActivity(existingActivity);
+    };
 
-        if (!title) return;
+    // 3. Select empty slot to open modal for creation
+    const handleDateSelect = (selectInfo) => {
+        const calendarApi = selectInfo.view.calendar;
+        calendarApi.unselect();
 
         const newStart = selectInfo.start;
         const newEnd = selectInfo.end;
@@ -87,56 +86,91 @@ export default function CalendarView({ dbData, selectedTripId, refreshDb }) {
         const startTimeStr = localStart.toISOString().slice(11, 16);
         const endTimeStr = localEnd.toISOString().slice(11, 16);
 
-        const newActivity = {
-            id: generateId(),
+        // Pre-fill a new draft activity
+        setSelectedActivity({
+            id: `new_${generateId()}`,
             tripId: selectedTripId,
             date: dateStr,
             startTime: startTimeStr,
             endTime: endTimeStr,
-            title: title,
+            title: '',
             departure: '',
             arrival: '',
             departureUrl: '',
             arrivalUrl: '',
             notes: ''
-        };
+        });
+    };
 
-        const updatedActivities = [...activities, newActivity];
+    // 4. Modal Handlers
+    const handleSaveModal = async (editedActivity) => {
+        let updatedActivities;
+        if (editedActivity.id.startsWith('new_')) {
+            // Remove 'new_' prefix 
+            const finalActivity = { ...editedActivity, id: editedActivity.id.replace('new_', '') };
+            updatedActivities = [...activities, finalActivity];
+        } else {
+            updatedActivities = activities.map(a => a.id === editedActivity.id ? editedActivity : a);
+        }
+
         try {
             await saveActivities(selectedTripId, updatedActivities);
             await refreshDb();
+            setSelectedActivity(null);
         } catch (e) {
-            alert('일정 생성에 실패했습니다.');
+            alert('일정 저장에 실패했습니다.');
+        }
+    };
+
+    const handleDeleteModal = async (idOfActivity) => {
+        if (!window.confirm('이 일정을 삭제하시겠습니까?')) return;
+        const updatedActivities = activities.filter(a => a.id !== idOfActivity);
+        try {
+            await saveActivities(selectedTripId, updatedActivities);
+            await refreshDb();
+            setSelectedActivity(null);
+        } catch (e) {
+            alert('일정 삭제에 실패했습니다.');
         }
     };
 
     return (
         <div className="calendar-page">
             <p className="calendar-instructions">
-                💡 원하는 시간대를 드래그하여 새로운 일정을 추가하거나, 기존 일정을 드래그 앤 드롭으로 이동시킬 수 있어요!
+                💡 원하는 시간대를 드래그하거나 기존 일정을 클릭하여 구체적인 계획을 입력하세요!
             </p>
             <div className="calendar-container">
                 <FullCalendar
                     plugins={[timeGridPlugin, interactionPlugin]}
                     initialView="timeGridWeek"
                     initialDate={firstDate}
-                    allDaySlot={false} // Focus on time-based scheduling
+                    allDaySlot={false}
                     events={events}
-                    editable={true} // Allow drag and resize
-                    selectable={true} // Allow click and drag to select
+                    editable={true}
+                    selectable={true}
                     selectMirror={true}
                     dayMaxEvents={true}
-                    eventChange={handleEventChange} // Triggered on drag/resize end
-                    select={handleDateSelect} // Triggered on empty slot selection
+                    eventChange={handleEventChange}
+                    eventClick={handleEventClick} // Handle editing
+                    select={handleDateSelect}     // Handle creation
                     height="100%"
                     headerToolbar={{
                         left: 'prev,next today',
                         center: 'title',
                         right: 'timeGridWeek,timeGridDay'
                     }}
-                    locale="ko" // Use Korean locale if possible
+                    locale="ko"
                 />
             </div>
+
+            {selectedActivity && (
+                <ActivityModal
+                    activity={selectedActivity}
+                    onClose={() => setSelectedActivity(null)}
+                    onSave={handleSaveModal}
+                    onDelete={handleDeleteModal}
+                />
+            )}
         </div>
     );
 }
