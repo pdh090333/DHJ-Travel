@@ -40,7 +40,7 @@ export default function ItineraryView({ dbData }) {
         // If both are coordinates AND a date/time is set, use the working timestamp format
         if (isCoord(originParam) && isCoord(destParam) && activity.date && activity.startTime) {
             const timestamp = Math.floor(new Date(`${activity.date}T${activity.startTime}:00`).getTime() / 1000);
-            return `https://www.google.com/maps/dir/${originParam}/${destParam}/am=t/data=!4m5!4m4!2m3!6e0!7e2!8j${timestamp}`;
+            return `https://www.google.com/maps/dir/${originParam}/${destParam}/am=t/data=!3m1!4b1!4m5!4m4!2m3!6e0!7e2!8j${timestamp}`;
         }
 
         // Fallback: standard API URL (no departure time, text or single-coord)
