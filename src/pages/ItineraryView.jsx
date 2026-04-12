@@ -39,7 +39,10 @@ export default function ItineraryView({ dbData }) {
 
         // If both are coordinates AND a date/time is set, use the working timestamp format
         if (isCoord(originParam) && isCoord(destParam) && activity.date && activity.startTime) {
-            const timestamp = Math.floor(new Date(`${activity.date}T${activity.startTime}:00`).getTime() / 1000);
+            const [yr, mo, dy] = activity.date.split('-').map(Number);
+            const [hr, mn] = activity.startTime.split(':').map(Number);
+            // !8j uses: midnight-UTC-of-date + local-time-in-seconds (no timezone conversion)
+            const timestamp = Math.floor(Date.UTC(yr, mo - 1, dy) / 1000) + hr * 3600 + mn * 60;
             return `https://www.google.com/maps/dir/${originParam}/${destParam}/am=t/data=!3m1!4b1!4m5!4m4!2m3!6e0!7e2!8j${timestamp}`;
         }
 
