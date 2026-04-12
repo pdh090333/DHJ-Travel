@@ -112,7 +112,7 @@ function App() {
           <ItineraryView dbData={dbData} selectedTripId={selectedTripId} />
         )}
         {currentView === 'calendar' && (
-          <CalendarView dbData={dbData} selectedTripId={selectedTripId} />
+          <CalendarView dbData={dbData} selectedTripId={selectedTripId} refreshDb={refreshDb} />
         )}
         {currentView === 'admin' && (
           <AdminView dbData={dbData} refreshDb={refreshDb} selectedTripId={selectedTripId} />
