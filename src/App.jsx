@@ -4,7 +4,6 @@ import Navigation from './components/Navigation';
 import ItineraryView from './pages/ItineraryView';
 import AdminView from './pages/AdminView';
 import TripSelect from './pages/TripSelect';
-import CalendarView from './pages/CalendarView';
 import { loadDB, ensureDefaultTrip, generateId, saveTrip, deleteTrip } from './db';
 import './index.css';
 
@@ -111,14 +110,11 @@ function App() {
         {!showTripSelect && currentView === 'itinerary' && (
           <ItineraryView dbData={dbData} selectedTripId={selectedTripId} />
         )}
-        {currentView === 'calendar' && (
-          <CalendarView dbData={dbData} selectedTripId={selectedTripId} refreshDb={refreshDb} />
-        )}
-        {currentView === 'admin' && (
+        {!showTripSelect && currentView === 'admin' && (
           <AdminView dbData={dbData} refreshDb={refreshDb} selectedTripId={selectedTripId} />
         )}
       </main>
-      <Navigation currentView={currentView} onViewChange={setCurrentView} />
+      {!showTripSelect && <Navigation currentView={currentView} onViewChange={setCurrentView} />}
     </>
   );
 }

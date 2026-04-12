@@ -25,14 +25,7 @@ export default function Header({ currentView, onViewChange, onBackToTrips, selec
                         <span className="hidden-mobile">Itinerary</span>
                     </button>
                     <button
-                        className={`btn ${currentView === 'calendar' ? 'btn-primary' : 'btn-ghost'}`}
-                        onClick={() => onViewChange('calendar')}
-                    >
-                        <Clock size={18} />
-                        <span className="hidden-mobile">Timeline</span>
-                    </button>
-                    <button
-                        className={`btn ${currentView === 'admin' ? 'active' : 'btn-ghost'}`}
+                        className={`btn ${currentView === 'admin' ? 'btn-primary' : 'btn-ghost'}`}
                         onClick={() => onViewChange('admin')}
                     >
                         <Settings size={18} />

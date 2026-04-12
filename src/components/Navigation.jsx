@@ -12,13 +12,6 @@ export default function Navigation({ currentView, onViewChange }) {
                 <span>Plan</span>
             </button>
             <button
-                className={`nav-item ${currentView === 'calendar' ? 'active' : ''}`}
-                onClick={() => onViewChange('calendar')}
-            >
-                <Clock size={24} />
-                <span>Timeline</span>
-            </button>
-            <button
                 className={`nav-item ${currentView === 'admin' ? 'active' : ''}`}
                 onClick={() => onViewChange('admin')}
             >
