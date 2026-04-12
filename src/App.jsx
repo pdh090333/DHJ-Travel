@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import Header from './components/Header';
 import ItineraryView from './pages/ItineraryView';
 import AdminView from './pages/AdminView';
@@ -84,6 +84,22 @@ function App() {
     );
   }
 
+  const enrichedTrips = useMemo(() => {
+    return dbData.trips.map(trip => {
+      const tripActivities = dbData.activities.filter(a => a.tripId === trip.id && a.date);
+      if (tripActivities.length === 0) {
+        return { ...trip, startDate: '', endDate: '' };
+      }
+
+      const dates = tripActivities.map(a => a.date).sort();
+      return {
+        ...trip,
+        startDate: dates[0],
+        endDate: dates[dates.length - 1]
+      };
+    });
+  }, [dbData.trips, dbData.activities]);
+
   const showTripSelect = !selectedTripId && (currentView === 'itinerary' || currentView === 'calendar');
 
   return (
@@ -101,7 +117,7 @@ function App() {
       <main className="container animate-slide-up">
         {showTripSelect && (
           <TripSelect
-            trips={dbData.trips}
+            trips={enrichedTrips}
             onSelectTrip={handleSelectTrip}
             onAddTrip={handleAddTrip}
           />
