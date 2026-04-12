@@ -84,23 +84,6 @@ function App() {
     );
   }
 
-  const enrichedTrips = useMemo(() => {
-    if (!dbData?.trips) return [];
-    return dbData.trips.map(trip => {
-      const tripActivities = (dbData.activities || []).filter(a => a.tripId === trip.id && a.date);
-      if (tripActivities.length === 0) {
-        return { ...trip, startDate: '', endDate: '' };
-      }
-
-      const dates = tripActivities.map(a => a.date).filter(Boolean).sort();
-      return {
-        ...trip,
-        startDate: dates[0] || '',
-        endDate: dates[dates.length - 1] || ''
-      };
-    });
-  }, [dbData.trips, dbData.activities]);
-
   const showTripSelect = !selectedTripId;
 
   return (
@@ -118,7 +101,7 @@ function App() {
       <main className="container animate-slide-up">
         {showTripSelect && (
           <TripSelect
-            trips={enrichedTrips}
+            trips={dbData.trips}
             onSelectTrip={handleSelectTrip}
             onAddTrip={handleAddTrip}
           />
