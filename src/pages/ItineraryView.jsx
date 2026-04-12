@@ -84,7 +84,7 @@ export default function ItineraryView({ dbData }) {
                                             className="btn btn-ghost map-toggle-btn"
                                             href={
                                                 (activity.departure && activity.arrival)
-                                                    ? `https://www.google.com/maps/dir/?api=1&origin=${encodeURIComponent(getLocationParam(activity.departure, activity.departureUrl))}&destination=${encodeURIComponent(getLocationParam(activity.arrival, activity.arrivalUrl))}${activity.date && activity.startTime ? `&departure_time=${Math.floor(new Date(`${activity.date}T${activity.startTime}:00`).getTime() / 1000)}` : ''}`
+                                                    ? `https://www.google.com/maps/dir/?api=1&origin=${encodeURIComponent(getLocationParam(activity.departure, activity.departureUrl))}&destination=${encodeURIComponent(getLocationParam(activity.arrival, activity.arrivalUrl))}`
                                                     : `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(getLocationParam(activity.arrival || activity.departure, activity.arrivalUrl || activity.departureUrl))}`
                                             }
                                             target="_blank"
