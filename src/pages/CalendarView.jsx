@@ -177,7 +177,6 @@ export default function CalendarView({ dbData, selectedTripId, refreshDb, onDrag
 
     const handleMoveToCandidates = async (activityData) => {
         if (!window.confirm('이 일정을 후보지(Wishlist)로 옮기시겠습니까?')) return;
-
         await moveActivityToCandidates(activityData);
     };
 
@@ -200,13 +199,14 @@ export default function CalendarView({ dbData, selectedTripId, refreshDb, onDrag
             await refreshDb();
             setSelectedActivity(null);
         } catch (e) {
+            console.error(e);
             alert('후보지 이동에 실패했습니다.');
         }
     };
 
     const handleEventDragStart = () => {
         onDragOverWishlist(false);
-        // Store wishlist sidebar bounds at start of drag for reliable coordinate check
+        // Cache the sidebar rect once at start
         const sidebar = document.querySelector('.candidates-sidebar');
         if (sidebar) {
             wishlistRectRef.current = sidebar.getBoundingClientRect();
@@ -215,27 +215,38 @@ export default function CalendarView({ dbData, selectedTripId, refreshDb, onDrag
 
     const handleEventDrag = (info) => {
         const { jsEvent } = info;
-        const clientX = jsEvent.clientX || (jsEvent.touches && jsEvent.touches[0] ? jsEvent.touches[0].clientX : 0);
-        const clientY = jsEvent.clientY || (jsEvent.touches && jsEvent.touches[0] ? jsEvent.touches[0].clientY : 0);
+        // Capture touch or mouse coordinates
+        const touch = (jsEvent.touches && jsEvent.touches[0]) || (jsEvent.changedTouches && jsEvent.changedTouches[0]);
+        const clientX = jsEvent.clientX || (touch ? touch.clientX : 0);
+        const clientY = jsEvent.clientY || (touch ? touch.clientY : 0);
 
-        if (!clientX || !clientY || !wishlistRectRef.current) return;
+        if (!clientX || !clientY) return;
 
-        const rect = wishlistRectRef.current;
-        const isOver = (
-            clientX >= rect.left &&
-            clientX <= rect.right &&
-            clientY >= rect.top &&
-            clientY <= rect.bottom
-        );
-        onDragOverWishlist(isOver);
+        // If for some reason rect is missing, try once more
+        if (!wishlistRectRef.current) {
+            const sidebar = document.querySelector('.candidates-sidebar');
+            if (sidebar) wishlistRectRef.current = sidebar.getBoundingClientRect();
+        }
+
+        if (wishlistRectRef.current) {
+            const rect = wishlistRectRef.current;
+            const isOver = (
+                clientX >= rect.left &&
+                clientX <= rect.right &&
+                clientY >= rect.top &&
+                clientY <= rect.bottom
+            );
+            onDragOverWishlist(isOver);
+        }
     };
 
-    const handleEventDragStop = (info) => {
+    const handleEventDragStop = async (info) => {
         const { event, jsEvent } = info;
         onDragOverWishlist(false);
 
-        const clientX = jsEvent.clientX || (jsEvent.touches && jsEvent.touches[0] ? jsEvent.touches[0].clientX : 0);
-        const clientY = jsEvent.clientY || (jsEvent.touches && jsEvent.touches[0] ? jsEvent.touches[0].clientY : 0);
+        const touch = (jsEvent.touches && jsEvent.touches[0]) || (jsEvent.changedTouches && jsEvent.changedTouches[0]);
+        const clientX = jsEvent.clientX || (touch ? touch.clientX : 0);
+        const clientY = jsEvent.clientY || (touch ? touch.clientY : 0);
 
         if (wishlistRectRef.current && clientX && clientY) {
             const rect = wishlistRectRef.current;
@@ -245,9 +256,12 @@ export default function CalendarView({ dbData, selectedTripId, refreshDb, onDrag
                 clientY >= rect.top &&
                 clientY <= rect.bottom
             );
+
             if (isOver) {
                 const activityData = event.extendedProps;
-                moveActivityToCandidates(activityData);
+                // Optimistic UI: remove immediately for smooth transition
+                event.remove();
+                await moveActivityToCandidates(activityData);
             }
         }
         wishlistRectRef.current = null;
