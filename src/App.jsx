@@ -92,7 +92,10 @@ function App() {
       <Header
         currentView={currentView}
         onViewChange={setCurrentView}
-        onBackToTrips={() => setSelectedTripId(null)}
+        onBackToTrips={() => {
+          setSelectedTripId(null);
+          setCurrentView('itinerary');
+        }}
         selectedTripId={selectedTripId}
         dbData={dbData}
       />
