@@ -5,9 +5,9 @@ export default function Header({ currentView, onViewChange }) {
     return (
         <header className="header-glass">
             <div className="header-content">
-                <div className="app-title">
+                <div className="app-title" onClick={() => onViewChange('itinerary')} style={{ cursor: 'pointer' }}>
                     <MapIcon size={24} color="var(--primary)" />
-                    TravelMate
+                    DHJ 여행 계획표
                 </div>
                 <div className="nav-links">
                     <button
