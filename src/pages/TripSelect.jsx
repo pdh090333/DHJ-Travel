@@ -1,7 +1,7 @@
-import { Plane, Calendar, ChevronRight, PlusCircle, Trash2 } from 'lucide-react';
+import { Plane, Calendar, ChevronRight, PlusCircle } from 'lucide-react';
 import './TripSelect.css';
 
-export default function TripSelect({ trips, onSelectTrip, onAddTrip, onDeleteTrip }) {
+export default function TripSelect({ trips, onSelectTrip, onAddTrip }) {
     return (
         <div className="trip-select-page">
             <div className="trip-select-header">
@@ -22,20 +22,8 @@ export default function TripSelect({ trips, onSelectTrip, onAddTrip, onDeleteTri
                                 <span>{trip.startDate || '날짜 미정'} - {trip.endDate || '날짜 미정'}</span>
                             </div>
                         </div>
-                        <div className="trip-card-actions">
-                            <button
-                                className="btn-icon danger"
-                                onClick={(e) => {
-                                    e.stopPropagation();
-                                    onDeleteTrip(trip.id);
-                                }}
-                                title="Delete Trip"
-                            >
-                                <Trash2 size={20} />
-                            </button>
-                            <div className="trip-card-arrow">
-                                <ChevronRight size={20} />
-                            </div>
+                        <div className="trip-card-arrow">
+                            <ChevronRight size={20} />
                         </div>
                     </div>
                 ))}

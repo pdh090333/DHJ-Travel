@@ -25,7 +25,8 @@
     flex: 1;
 }
 
-.trip-selector-admin {
+.trip-selector-admin,
+.trip-title-input {
     padding: 0.5rem;
     border-radius: var(--radius-md);
     border: 1px solid var(--border-color);
@@ -33,7 +34,21 @@
     color: var(--text-primary);
     font-weight: 600;
     font-size: 1rem;
+}
+
+.trip-selector-admin {
+    min-width: 150px;
+}
+
+.trip-title-input {
+    flex: 2;
     min-width: 200px;
+}
+
+.trip-title-input:focus {
+    outline: none;
+    border-color: var(--primary);
+    background: var(--panel-bg);
 }
 
 .btn.danger {

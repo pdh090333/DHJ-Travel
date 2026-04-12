@@ -105,7 +105,6 @@ function App() {
             trips={dbData.trips}
             onSelectTrip={handleSelectTrip}
             onAddTrip={handleAddTrip}
-            onDeleteTrip={handleDeleteTrip}
           />
         )}
         {!showTripSelect && currentView === 'itinerary' && (
