@@ -99,18 +99,18 @@ function App() {
         dbData={dbData}
       />
       <main className="container animate-slide-up">
-        {showTripSelect && (
-          <TripSelect
-            trips={dbData.trips}
-            onSelectTrip={handleSelectTrip}
-            onAddTrip={handleAddTrip}
-          />
-        )}
-        {!showTripSelect && currentView === 'itinerary' && (
-          <ItineraryView dbData={dbData} selectedTripId={selectedTripId} />
-        )}
-        {!showTripSelect && currentView === 'admin' && (
+        {currentView === 'admin' ? (
           <AdminView dbData={dbData} refreshDb={refreshDb} selectedTripId={selectedTripId} />
+        ) : (
+          !selectedTripId ? (
+            <TripSelect
+              trips={dbData.trips}
+              onSelectTrip={handleSelectTrip}
+              onAddTrip={handleAddTrip}
+            />
+          ) : (
+            <ItineraryView dbData={dbData} selectedTripId={selectedTripId} />
+          )
         )}
       </main>
     </>

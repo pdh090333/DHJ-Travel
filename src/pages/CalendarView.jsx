@@ -177,6 +177,10 @@ export default function CalendarView({ dbData, selectedTripId, refreshDb }) {
     const handleMoveToCandidates = async (activityData) => {
         if (!window.confirm('이 일정을 후보지(Wishlist)로 옮기시겠습니까?')) return;
 
+        await moveActivityToCandidates(activityData);
+    };
+
+    const moveActivityToCandidates = async (activityData) => {
         const candidate = {
             id: generateId(),
             tripId: selectedTripId,
@@ -196,6 +200,30 @@ export default function CalendarView({ dbData, selectedTripId, refreshDb }) {
             setSelectedActivity(null);
         } catch (e) {
             alert('후보지 이동에 실패했습니다.');
+        }
+    };
+
+    const handleEventDragStop = (info) => {
+        const { event, jsEvent, el } = info;
+
+        // Get coordinates (handle both mouse and touch)
+        const clientX = jsEvent.clientX || (jsEvent.touches && jsEvent.touches[0] ? jsEvent.touches[0].clientX : 0);
+        const clientY = jsEvent.clientY || (jsEvent.touches && jsEvent.touches[0] ? jsEvent.touches[0].clientY : 0);
+
+        if (!clientX || !clientY) return;
+
+        // Temporarily hide the dragged element to see what's underneath
+        const originalDisplay = el.style.display;
+        el.style.display = 'none';
+
+        const dropEl = document.elementFromPoint(clientX, clientY);
+        const isOverSidebar = dropEl && dropEl.closest('.candidates-sidebar');
+
+        el.style.display = originalDisplay;
+
+        if (isOverSidebar) {
+            const activityData = event.extendedProps;
+            moveActivityToCandidates(activityData);
         }
     };
 
@@ -219,6 +247,7 @@ export default function CalendarView({ dbData, selectedTripId, refreshDb }) {
                     eventClick={handleEventClick}
                     select={handleDateSelect}
                     eventReceive={handleEventReceive}
+                    eventDragStop={handleEventDragStop}
                     droppable={true}
                     height="100%"
                     headerToolbar={{
