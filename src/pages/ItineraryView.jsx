@@ -46,18 +46,22 @@ export default function ItineraryView({ dbData, selectedTripId }) {
     const buildDirectionsUrl = (activity) => {
         const originParam = getLocationParam(activity.departure, activity.departureUrl);
         const destParam = getLocationParam(activity.arrival, activity.arrivalUrl);
-        const isCoord = (s) => /^-?\d+\.\d+,-?\d+\.\d+$/.test(s);
 
-        // If both are coordinates AND a date/time is set, use the working timestamp format
-        if (isCoord(originParam) && isCoord(destParam) && activity.date && activity.startTime) {
+        // Calculate dynamic timestamp if date and time are available
+        if (activity.date && activity.startTime) {
             const [yr, mo, dy] = activity.date.split('-').map(Number);
             const [hr, mn] = activity.startTime.split(':').map(Number);
-            // !8j uses: midnight-UTC-of-date + local-time-in-seconds (no timezone conversion)
+
+            // Generate Google Maps internal timestamp (!8j):
+            // It represents seconds from epoch at UTC midnight of the date + local seconds of day.
             const timestamp = Math.floor(Date.UTC(yr, mo - 1, dy) / 1000) + hr * 3600 + mn * 60;
-            return `https://www.google.com/maps/dir/${originParam}/${destParam}/am=t/data=!3m1!4b1!4m5!4m4!2m3!6e0!7e2!8j${timestamp}`;
+
+            // Use the advanced URL format which supports the !8j (departure time) parameter
+            // This works with both coords (47.123,130.456) and place names.
+            return `https://www.google.com/maps/dir/${encodeURIComponent(originParam)}/${encodeURIComponent(destParam)}/am=t/data=!3m1!4b1!4m5!4m4!2m3!6e0!7e2!8j${timestamp}`;
         }
 
-        // Fallback: standard API URL (no departure time, text or single-coord)
+        // Fallback: standard API URL without time if data is incomplete
         return `https://www.google.com/maps/dir/?api=1&origin=${encodeURIComponent(originParam)}&destination=${encodeURIComponent(destParam)}`;
     };
 
