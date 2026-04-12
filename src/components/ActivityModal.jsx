@@ -39,10 +39,18 @@ export default function ActivityModal({ activity, onClose, onSave, onDelete, onM
         if (url.includes('lh3.googleusercontent.com')) return url;
 
         // Try to extract from Google Maps photo gallery URLs
-        // Pattern: ...!6shttps:%2F%2Flh3.googleusercontent.com%2F...
-        const encodedMatch = url.match(/!6s(https%3A%2F%2Flh3\.googleusercontent\.com%2F[^!&]+)/);
-        if (encodedMatch) {
-            return decodeURIComponent(encodedMatch[1]);
+        // Pattern: ...!6shttps[:%]+2F%2Flh3\.googleusercontent\.com%2F...
+        const match = url.match(/!6s(https[:%][^!&]+lh3\.googleusercontent\.com[^!&]+)/);
+        if (match) {
+            let extracted = match[1];
+            // Decode repeatedly if necessary to handle double encoding
+            try {
+                let decoded = decodeURIComponent(extracted);
+                if (decoded.includes('%')) decoded = decodeURIComponent(decoded);
+                return decoded;
+            } catch (e) {
+                return extracted;
+            }
         }
 
         return url;

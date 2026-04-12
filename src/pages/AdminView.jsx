@@ -35,9 +35,15 @@ export default function AdminView({ dbData, refreshDb, selectedTripId: initialTr
 
     const extractDirectImageUrl = (url) => {
         if (!url) return '';
-        if (url.includes('lh3.googleusercontent.com')) return url;
-        const encodedMatch = url.match(/!6s(https%3A%2F%2Flh3\.googleusercontent\.com%2F[^!&]+)/);
-        if (encodedMatch) return decodeURIComponent(encodedMatch[1]);
+        if (url.includes('lh3.googleusercontent.com') && !url.includes('google.com/maps')) return url;
+        const match = url.match(/!6s(https[:%][^!&]+lh3\.googleusercontent\.com[^!&]+)/);
+        if (match) {
+            try {
+                let decoded = decodeURIComponent(match[1]);
+                if (decoded.includes('%')) decoded = decodeURIComponent(decoded);
+                return decoded;
+            } catch (e) { return match[1]; }
+        }
         return url;
     };
 
