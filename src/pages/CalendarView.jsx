@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import FullCalendar from '@fullcalendar/react';
 import timeGridPlugin from '@fullcalendar/timegrid';
 import interactionPlugin from '@fullcalendar/interaction';
@@ -8,6 +8,7 @@ import './CalendarView.css';
 
 export default function CalendarView({ dbData, selectedTripId, refreshDb, onDragOverWishlist }) {
     const [selectedActivity, setSelectedActivity] = useState(null);
+    const wishlistRectRef = useRef(null);
     const activities = dbData.activities.filter(a => a.tripId === selectedTripId);
 
     const firstDate = activities
@@ -203,34 +204,13 @@ export default function CalendarView({ dbData, selectedTripId, refreshDb, onDrag
         }
     };
 
-    const handleEventDragStop = (info) => {
-        const { event, jsEvent, el } = info;
-
-        onDragOverWishlist(false);
-
-        // Get coordinates (handle both mouse and touch)
-        const clientX = jsEvent.clientX || (jsEvent.touches && jsEvent.touches[0] ? jsEvent.touches[0].clientX : 0);
-        const clientY = jsEvent.clientY || (jsEvent.touches && jsEvent.touches[0] ? jsEvent.touches[0].clientY : 0);
-
-        if (!clientX || !clientY) return;
-
-        // Temporarily hide the dragged element to see what's underneath
-        const originalDisplay = el.style.display;
-        el.style.display = 'none';
-
-        const dropEl = document.elementFromPoint(clientX, clientY);
-        const isOverSidebar = dropEl && dropEl.closest('.candidates-sidebar');
-
-        el.style.display = originalDisplay;
-
-        if (isOverSidebar) {
-            const activityData = event.extendedProps;
-            moveActivityToCandidates(activityData);
-        }
-    };
-
     const handleEventDragStart = () => {
         onDragOverWishlist(false);
+        // Store wishlist sidebar bounds at start of drag for reliable coordinate check
+        const sidebar = document.querySelector('.candidates-sidebar');
+        if (sidebar) {
+            wishlistRectRef.current = sidebar.getBoundingClientRect();
+        }
     };
 
     const handleEventDrag = (info) => {
@@ -238,11 +218,39 @@ export default function CalendarView({ dbData, selectedTripId, refreshDb, onDrag
         const clientX = jsEvent.clientX || (jsEvent.touches && jsEvent.touches[0] ? jsEvent.touches[0].clientX : 0);
         const clientY = jsEvent.clientY || (jsEvent.touches && jsEvent.touches[0] ? jsEvent.touches[0].clientY : 0);
 
-        if (!clientX || !clientY) return;
+        if (!clientX || !clientY || !wishlistRectRef.current) return;
 
-        const dropEl = document.elementFromPoint(clientX, clientY);
-        const isOverSidebar = dropEl && dropEl.closest('.candidates-sidebar');
-        onDragOverWishlist(!!isOverSidebar);
+        const rect = wishlistRectRef.current;
+        const isOver = (
+            clientX >= rect.left &&
+            clientX <= rect.right &&
+            clientY >= rect.top &&
+            clientY <= rect.bottom
+        );
+        onDragOverWishlist(isOver);
+    };
+
+    const handleEventDragStop = (info) => {
+        const { event, jsEvent } = info;
+        onDragOverWishlist(false);
+
+        const clientX = jsEvent.clientX || (jsEvent.touches && jsEvent.touches[0] ? jsEvent.touches[0].clientX : 0);
+        const clientY = jsEvent.clientY || (jsEvent.touches && jsEvent.touches[0] ? jsEvent.touches[0].clientY : 0);
+
+        if (wishlistRectRef.current && clientX && clientY) {
+            const rect = wishlistRectRef.current;
+            const isOver = (
+                clientX >= rect.left &&
+                clientX <= rect.right &&
+                clientY >= rect.top &&
+                clientY <= rect.bottom
+            );
+            if (isOver) {
+                const activityData = event.extendedProps;
+                moveActivityToCandidates(activityData);
+            }
+        }
+        wishlistRectRef.current = null;
     };
 
     return (
