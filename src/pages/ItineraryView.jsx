@@ -11,11 +11,11 @@ export default function ItineraryView({ dbData }) {
 
     const getLocationParam = (name, url) => {
         if (!url) return name;
-        
+
         // 1. Try !3d and !4d (common in shared full URLs)
         const d3match = url.match(/!3d(-?\d+\.\d+)/);
         const d4match = url.match(/!4d(-?\d+\.\d+)/);
-        if (d3match && d4match) return `${d3match[1]},${d4match[2]}`;
+        if (d3match && d4match) return `${d3match[1]},${d4match[1]}`;
 
         // 2. Try @lat,lng
         const coordMatch = url.match(/@(-?\d+\.\d+),(-?\d+\.\d+)/);
@@ -28,7 +28,7 @@ export default function ItineraryView({ dbData }) {
         // 4. Try extract place name from /place/Name/
         const placeMatch = url.match(/\/place\/([^/]+)/);
         if (placeMatch) return decodeURIComponent(placeMatch[1].replace(/\+/g, ' '));
-        
+
         return name;
     };
 
@@ -84,7 +84,7 @@ export default function ItineraryView({ dbData }) {
                                             className="btn btn-ghost map-toggle-btn"
                                             href={
                                                 (activity.departure && activity.arrival)
-                                                    ? `https://www.google.com/maps/dir/?api=1&origin=${encodeURIComponent(getLocationParam(activity.departure, activity.departureUrl))}&destination=${encodeURIComponent(getLocationParam(activity.arrival, activity.arrivalUrl))}`
+                                                    ? `https://www.google.com/maps/dir/?api=1&origin=${encodeURIComponent(getLocationParam(activity.departure, activity.departureUrl))}&destination=${encodeURIComponent(getLocationParam(activity.arrival, activity.arrivalUrl))}${activity.date && activity.startTime ? `&departure_time=${Math.floor(new Date(`${activity.date}T${activity.startTime}:00`).getTime() / 1000)}` : ''}`
                                                     : `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(getLocationParam(activity.arrival || activity.departure, activity.arrivalUrl || activity.departureUrl))}`
                                             }
                                             target="_blank"
