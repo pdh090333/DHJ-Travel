@@ -1,3 +1,4 @@
+import React, { useState, useEffect } from 'react';
 import { saveActivities, exportToCSV, parseCSV, generateId, saveTrip, deleteTrip, saveCandidate, deleteCandidate } from '../db';
 import { Download, Upload, Plus, Trash2, Save, Trash, MapPin, Link as LinkIcon, ExternalLink } from 'lucide-react';
 import { Draggable } from '@fullcalendar/interaction';
