@@ -161,7 +161,7 @@ export default function AdminView({ dbData, refreshDb, selectedTripId: initialTr
                     <tbody>
                         {currentTripActivities.map((act, index) => (
                             <tr key={act.id}>
-                                <td><input type="text" value={act.date} onChange={(e) => handleFieldChange(index, 'date', e.target.value)} placeholder="YYYY-MM-DD" /></td>
+                                <td><input type="date" value={act.date} onChange={(e) => handleFieldChange(index, 'date', e.target.value)} /></td>
                                 <td><input type="time" value={act.startTime} onChange={(e) => handleFieldChange(index, 'startTime', e.target.value)} /></td>
                                 <td><input type="time" value={act.endTime} onChange={(e) => handleFieldChange(index, 'endTime', e.target.value)} /></td>
                                 <td><input type="text" value={act.title} onChange={(e) => handleFieldChange(index, 'title', e.target.value)} /></td>
