@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
 import Header from './components/Header';
-import Navigation from './components/Navigation';
 import ItineraryView from './pages/ItineraryView';
 import AdminView from './pages/AdminView';
 import TripSelect from './pages/TripSelect';
@@ -114,7 +113,6 @@ function App() {
           <AdminView dbData={dbData} refreshDb={refreshDb} selectedTripId={selectedTripId} />
         )}
       </main>
-      {!showTripSelect && <Navigation currentView={currentView} onViewChange={setCurrentView} />}
     </>
   );
 }
