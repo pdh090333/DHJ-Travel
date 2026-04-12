@@ -6,7 +6,7 @@ import ActivityModal from '../components/ActivityModal';
 import { saveActivities, generateId, deleteCandidate, saveCandidate } from '../db';
 import './CalendarView.css';
 
-export default function CalendarView({ dbData, selectedTripId, refreshDb }) {
+export default function CalendarView({ dbData, selectedTripId, refreshDb, onDragOverWishlist }) {
     const [selectedActivity, setSelectedActivity] = useState(null);
     const activities = dbData.activities.filter(a => a.tripId === selectedTripId);
 
@@ -206,6 +206,8 @@ export default function CalendarView({ dbData, selectedTripId, refreshDb }) {
     const handleEventDragStop = (info) => {
         const { event, jsEvent, el } = info;
 
+        onDragOverWishlist(false);
+
         // Get coordinates (handle both mouse and touch)
         const clientX = jsEvent.clientX || (jsEvent.touches && jsEvent.touches[0] ? jsEvent.touches[0].clientX : 0);
         const clientY = jsEvent.clientY || (jsEvent.touches && jsEvent.touches[0] ? jsEvent.touches[0].clientY : 0);
@@ -225,6 +227,22 @@ export default function CalendarView({ dbData, selectedTripId, refreshDb }) {
             const activityData = event.extendedProps;
             moveActivityToCandidates(activityData);
         }
+    };
+
+    const handleEventDragStart = () => {
+        onDragOverWishlist(false);
+    };
+
+    const handleEventDrag = (info) => {
+        const { jsEvent } = info;
+        const clientX = jsEvent.clientX || (jsEvent.touches && jsEvent.touches[0] ? jsEvent.touches[0].clientX : 0);
+        const clientY = jsEvent.clientY || (jsEvent.touches && jsEvent.touches[0] ? jsEvent.touches[0].clientY : 0);
+
+        if (!clientX || !clientY) return;
+
+        const dropEl = document.elementFromPoint(clientX, clientY);
+        const isOverSidebar = dropEl && dropEl.closest('.candidates-sidebar');
+        onDragOverWishlist(!!isOverSidebar);
     };
 
     return (
@@ -248,6 +266,8 @@ export default function CalendarView({ dbData, selectedTripId, refreshDb }) {
                     select={handleDateSelect}
                     eventReceive={handleEventReceive}
                     eventDragStop={handleEventDragStop}
+                    eventDragStart={handleEventDragStart}
+                    eventDrag={handleEventDrag}
                     droppable={true}
                     height="100%"
                     headerToolbar={{

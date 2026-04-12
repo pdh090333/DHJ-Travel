@@ -12,6 +12,7 @@ export default function AdminView({ dbData, refreshDb, selectedTripId: initialTr
     );
 
     const [newCandidate, setNewCandidate] = useState({ title: '', url: '', notes: '' });
+    const [isDraggingOverWishlist, setIsDraggingOverWishlist] = useState(false);
 
     // Initialize Draggable for candidates
     useEffect(() => {
@@ -156,7 +157,12 @@ export default function AdminView({ dbData, refreshDb, selectedTripId: initialTr
             <div className="admin-content-layout">
                 <div className="calendar-integration-wrapper">
                     {selectedTripId ? (
-                        <CalendarView dbData={dbData} selectedTripId={selectedTripId} refreshDb={refreshDb} />
+                        <CalendarView
+                            dbData={dbData}
+                            selectedTripId={selectedTripId}
+                            refreshDb={refreshDb}
+                            onDragOverWishlist={setIsDraggingOverWishlist}
+                        />
                     ) : (
                         <div style={{ textAlign: 'center', padding: '3rem', color: 'var(--text-secondary)' }}>
                             위에서 여행을 선택하거나 추가해 주세요.
@@ -164,7 +170,7 @@ export default function AdminView({ dbData, refreshDb, selectedTripId: initialTr
                     )}
                 </div>
 
-                <div className="candidates-sidebar">
+                <div className={`candidates-sidebar ${isDraggingOverWishlist ? 'is-dragging-over' : ''}`}>
                     <div className="sidebar-header">
                         <MapPin size={18} />
                         <h3>가고 싶은 곳 (Wishlist)</h3>

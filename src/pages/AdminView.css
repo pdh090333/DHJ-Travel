@@ -85,6 +85,19 @@
     flex-direction: column;
     overflow: hidden;
     box-shadow: var(--shadow-sm);
+    transition: all 0.3s ease;
+}
+
+.candidates-sidebar.is-dragging-over {
+    border: 2px solid var(--primary);
+    transform: scale(1.02);
+    box-shadow: 0 0 20px rgba(79, 70, 229, 0.4);
+    background: rgba(79, 70, 229, 0.05);
+}
+
+.candidates-sidebar.is-dragging-over .sidebar-header {
+    background: var(--primary);
+    color: white;
 }
 
 .sidebar-header {
