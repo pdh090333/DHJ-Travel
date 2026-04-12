@@ -19,7 +19,16 @@ export default function AdminView({ dbData, refreshDb, selectedTripId: initialTr
     };
 
     // Update local state when selectedTripId or dbData changes
-    const currentTripActivities = activities.filter(a => a.tripId === selectedTripId);
+    const currentTripActivities = activities
+        .filter(a => a.tripId === selectedTripId)
+        .sort((a, b) => {
+            const dateA = a.date || '9999-12-31';
+            const dateB = b.date || '9999-12-31';
+            if (dateA !== dateB) return dateA.localeCompare(dateB);
+            const timeA = a.startTime || '99:99';
+            const timeB = b.startTime || '99:99';
+            return timeA.localeCompare(timeB);
+        });
 
     const handleFieldChange = (index, field, value) => {
         const activityId = currentTripActivities[index].id;

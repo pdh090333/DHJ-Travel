@@ -1,5 +1,5 @@
 import React from 'react';
-import { Settings, Map as MapIcon, CalendarDays, ArrowLeft } from 'lucide-react';
+import { Settings, Map as MapIcon, CalendarDays, ArrowLeft, Clock } from 'lucide-react';
 
 export default function Header({ currentView, onViewChange, onBackToTrips, selectedTripId, dbData }) {
     const currentTrip = dbData?.trips?.find(t => t.id === selectedTripId);
@@ -23,6 +23,13 @@ export default function Header({ currentView, onViewChange, onBackToTrips, selec
                     >
                         <CalendarDays size={18} />
                         <span className="hidden-mobile">Itinerary</span>
+                    </button>
+                    <button
+                        className={`btn ${currentView === 'calendar' ? 'btn-primary' : 'btn-ghost'}`}
+                        onClick={() => onViewChange('calendar')}
+                    >
+                        <Clock size={18} />
+                        <span className="hidden-mobile">Timeline</span>
                     </button>
                     <button
                         className={`btn ${currentView === 'admin' ? 'active' : 'btn-ghost'}`}

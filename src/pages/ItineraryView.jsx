@@ -18,7 +18,7 @@ export default function ItineraryView({ dbData, selectedTripId }) {
 
     const filteredActivities = tripActivities
         .filter(a => a.date === selectedDate)
-        .sort((a, b) => a.startTime.localeCompare(b.startTime));
+        .sort((a, b) => (a.startTime || '99:99').localeCompare(b.startTime || '99:99'));
 
     const getLocationParam = (name, url) => {
         if (!url) return name;

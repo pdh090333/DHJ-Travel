@@ -86,7 +86,7 @@ function App() {
     );
   }
 
-  const showTripSelect = !selectedTripId && currentView === 'itinerary';
+  const showTripSelect = !selectedTripId && (currentView === 'itinerary' || currentView === 'calendar');
 
   return (
     <>
