@@ -32,6 +32,21 @@ export default function ItineraryView({ dbData }) {
         return name;
     };
 
+    const buildDirectionsUrl = (activity) => {
+        const originParam = getLocationParam(activity.departure, activity.departureUrl);
+        const destParam = getLocationParam(activity.arrival, activity.arrivalUrl);
+        const isCoord = (s) => /^-?\d+\.\d+,-?\d+\.\d+$/.test(s);
+
+        // If both are coordinates AND a date/time is set, use the working timestamp format
+        if (isCoord(originParam) && isCoord(destParam) && activity.date && activity.startTime) {
+            const timestamp = Math.floor(new Date(`${activity.date}T${activity.startTime}:00`).getTime() / 1000);
+            return `https://www.google.com/maps/dir/${originParam}/${destParam}/am=t/data=!4m5!4m4!2m3!6e0!7e2!8j${timestamp}`;
+        }
+
+        // Fallback: standard API URL (no departure time, text or single-coord)
+        return `https://www.google.com/maps/dir/?api=1&origin=${encodeURIComponent(originParam)}&destination=${encodeURIComponent(destParam)}`;
+    };
+
     return (
         <div className="itinerary-page">
             <div className="date-selector">
@@ -84,7 +99,7 @@ export default function ItineraryView({ dbData }) {
                                             className="btn btn-ghost map-toggle-btn"
                                             href={
                                                 (activity.departure && activity.arrival)
-                                                    ? `https://www.google.com/maps/dir/?api=1&origin=${encodeURIComponent(getLocationParam(activity.departure, activity.departureUrl))}&destination=${encodeURIComponent(getLocationParam(activity.arrival, activity.arrivalUrl))}`
+                                                    ? buildDirectionsUrl(activity)
                                                     : `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(getLocationParam(activity.arrival || activity.departure, activity.arrivalUrl || activity.departureUrl))}`
                                             }
                                             target="_blank"
