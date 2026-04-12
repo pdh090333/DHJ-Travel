@@ -4,7 +4,7 @@ import Navigation from './components/Navigation';
 import ItineraryView from './pages/ItineraryView';
 import AdminView from './pages/AdminView';
 import TripSelect from './pages/TripSelect';
-import { loadDB, ensureDefaultTrip, generateId, saveTrip } from './db';
+import { loadDB, ensureDefaultTrip, generateId, saveTrip, deleteTrip } from './db';
 import './index.css';
 
 function App() {
@@ -65,6 +65,17 @@ function App() {
     }
   };
 
+  const handleDeleteTrip = async (tripId) => {
+    if (!confirm('정말로 이 여행과 관련된 모든 일정을 삭제하시겠습니까?')) return;
+    try {
+      await deleteTrip(tripId);
+      await refreshDb();
+      if (selectedTripId === tripId) setSelectedTripId(null);
+    } catch (e) {
+      alert('여행 삭제 실패: ' + e.message);
+    }
+  };
+
   if (loading) {
     return (
       <div className="loading-screen">
@@ -83,6 +94,7 @@ function App() {
         onViewChange={setCurrentView}
         onBackToTrips={() => setSelectedTripId(null)}
         selectedTripId={selectedTripId}
+        dbData={dbData}
       />
       <main className="container animate-slide-up">
         {showTripSelect && (
@@ -90,6 +102,7 @@ function App() {
             trips={dbData.trips}
             onSelectTrip={handleSelectTrip}
             onAddTrip={handleAddTrip}
+            onDeleteTrip={handleDeleteTrip}
           />
         )}
         {!showTripSelect && currentView === 'itinerary' && (

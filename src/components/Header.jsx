@@ -12,9 +12,9 @@ export default function Header({ currentView, onViewChange, onBackToTrips, selec
                     {selectedTripId ? (
                         <div className="trip-context">
                             <span className="back-hint"><ArrowLeft size={16} /></span>
-                            <span className="trip-title">{currentTrip?.title || 'TravelMate'}</span>
+                            <span className="trip-title">{currentTrip?.title || 'DHJ 여행 일정표'}</span>
                         </div>
-                    ) : 'TravelMate'}
+                    ) : 'DHJ 여행 일정표'}
                 </div>
                 <div className="nav-links">
                     <button

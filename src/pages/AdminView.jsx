@@ -1,3 +1,4 @@
+import React, { useState } from 'react';
 import { saveActivities, exportToCSV, parseCSV, generateId, saveTrip, deleteTrip } from '../db';
 import { Download, Upload, Plus, Trash2, Save, Trash } from 'lucide-react';
 import './AdminView.css';

@@ -99,9 +99,15 @@
     font-size: 0.9rem;
 }
 
+.trip-card-actions {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    z-index: 2;
+}
+
 .trip-card-arrow {
     color: var(--text-secondary);
-    z-index: 1;
 }
 
 .add-trip-card {
@@ -134,7 +140,7 @@
     .trip-select-header h1 {
         font-size: 2rem;
     }
-    
+
     .trip-grid {
         grid-template-columns: 1fr;
     }
