@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
+import { Star } from 'lucide-react';
 import './ActivityModal.css';
 
-export default function ActivityModal({ activity, onClose, onSave, onDelete }) {
+export default function ActivityModal({ activity, onClose, onSave, onDelete, onMoveToCandidates }) {
     const [formData, setFormData] = useState({
         title: '',
         date: '',
@@ -97,9 +98,14 @@ export default function ActivityModal({ activity, onClose, onSave, onDelete }) {
 
                     <div className="modal-actions">
                         {!activity.id.startsWith('new_') && (
-                            <button type="button" className="btn btn-danger" onClick={() => onDelete(activity.id)}>
-                                삭제
-                            </button>
+                            <div className="action-left-group">
+                                <button type="button" className="btn btn-danger" onClick={() => onDelete(activity.id)}>
+                                    삭제
+                                </button>
+                                <button type="button" className="btn btn-ghost" onClick={() => onMoveToCandidates(formData)}>
+                                    <Star size={16} /> 후보지로 이동
+                                </button>
+                            </div>
                         )}
                         <div className="action-right">
                             <button type="button" className="btn btn-ghost" onClick={onClose}>취소</button>

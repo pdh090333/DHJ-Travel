@@ -3,7 +3,7 @@ import FullCalendar from '@fullcalendar/react';
 import timeGridPlugin from '@fullcalendar/timegrid';
 import interactionPlugin from '@fullcalendar/interaction';
 import ActivityModal from '../components/ActivityModal';
-import { saveActivities, generateId } from '../db';
+import { saveActivities, generateId, deleteCandidate, saveCandidate } from '../db';
 import './CalendarView.css';
 
 export default function CalendarView({ dbData, selectedTripId, refreshDb }) {
@@ -134,6 +134,71 @@ export default function CalendarView({ dbData, selectedTripId, refreshDb }) {
         }
     };
 
+    const handleEventReceive = async (info) => {
+        const { event } = info;
+        const candidateData = event.extendedProps;
+
+        const newStart = event.start;
+        const newEnd = event.end || new Date(newStart.getTime() + 60 * 60 * 1000);
+        const offset = newStart.getTimezoneOffset() * 60000;
+        const localStart = new Date(newStart.getTime() - offset);
+        const localEnd = new Date(newEnd.getTime() - offset);
+
+        const dateStr = localStart.toISOString().split('T')[0];
+        const startTimeStr = localStart.toISOString().slice(11, 16);
+        const endTimeStr = localEnd.toISOString().slice(11, 16);
+
+        const newActivity = {
+            id: generateId(),
+            tripId: selectedTripId,
+            title: candidateData.title,
+            date: dateStr,
+            startTime: startTimeStr,
+            endTime: endTimeStr,
+            departure: candidateData.departure || '',
+            arrival: candidateData.arrival || candidateData.title,
+            departureUrl: candidateData.departureUrl || '',
+            arrivalUrl: candidateData.arrivalUrl || candidateData.url || '',
+            notes: candidateData.notes || ''
+        };
+
+        try {
+            // 1. Add as activity
+            await saveActivities(selectedTripId, [...activities, newActivity]);
+            // 2. Remove from candidates
+            await deleteCandidate(candidateData.id);
+            await refreshDb();
+        } catch (e) {
+            alert('일정 전환에 실패했습니다.');
+            event.remove();
+        }
+    };
+
+    const handleMoveToCandidates = async (activityData) => {
+        if (!window.confirm('이 일정을 후보지(Wishlist)로 옮기시겠습니까?')) return;
+
+        const candidate = {
+            id: generateId(),
+            tripId: selectedTripId,
+            title: activityData.title,
+            url: activityData.arrivalUrl || activityData.departureUrl || '',
+            notes: activityData.notes || ''
+        };
+
+        const updatedActivities = activities.filter(a => a.id !== activityData.id);
+
+        try {
+            // 1. Save as candidate
+            await saveCandidate(candidate);
+            // 2. Remove from activities
+            await saveActivities(selectedTripId, updatedActivities);
+            await refreshDb();
+            setSelectedActivity(null);
+        } catch (e) {
+            alert('후보지 이동에 실패했습니다.');
+        }
+    };
+
     return (
         <div className="calendar-page">
             <p className="calendar-instructions">
@@ -151,8 +216,10 @@ export default function CalendarView({ dbData, selectedTripId, refreshDb }) {
                     selectMirror={true}
                     dayMaxEvents={true}
                     eventChange={handleEventChange}
-                    eventClick={handleEventClick} // Handle editing
-                    select={handleDateSelect}     // Handle creation
+                    eventClick={handleEventClick}
+                    select={handleDateSelect}
+                    eventReceive={handleEventReceive}
+                    droppable={true}
                     height="100%"
                     headerToolbar={{
                         left: 'prev,next today',
@@ -169,6 +236,7 @@ export default function CalendarView({ dbData, selectedTripId, refreshDb }) {
                     onClose={() => setSelectedActivity(null)}
                     onSave={handleSaveModal}
                     onDelete={handleDeleteModal}
+                    onMoveToCandidates={handleMoveToCandidates}
                 />
             )}
         </div>

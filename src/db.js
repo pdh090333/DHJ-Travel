@@ -12,6 +12,7 @@ import { db } from './firebase';
 
 const TRIPS_COL = 'trips';
 const ACTIVITIES_COL = 'activities';
+const CANDIDATES_COL = 'candidates';
 
 export const generateId = () => {
     if (typeof crypto !== 'undefined' && crypto.randomUUID) {
@@ -22,14 +23,16 @@ export const generateId = () => {
 
 // ─── Load ──────────────────────────────────────────────
 export const loadDB = async () => {
-    const [tripsSnap, activitiesSnap] = await Promise.all([
+    const [tripsSnap, activitiesSnap, candidatesSnap] = await Promise.all([
         getDocs(collection(db, TRIPS_COL)),
-        getDocs(collection(db, ACTIVITIES_COL))
+        getDocs(collection(db, ACTIVITIES_COL)),
+        getDocs(collection(db, CANDIDATES_COL))
     ]);
 
     const trips = tripsSnap.docs.map(d => ({ id: d.id, ...d.data() }));
     const activities = activitiesSnap.docs.map(d => ({ id: d.id, ...d.data() }));
-    return { trips, activities };
+    const candidates = candidatesSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+    return { trips, activities, candidates };
 };
 
 // ─── Save activities for a specific trip ─────────────────
@@ -75,7 +78,24 @@ export const deleteTrip = async (tripId) => {
         }
     });
 
+    // 3. Delete associated candidates
+    const candidatesSnap = await getDocs(collection(db, CANDIDATES_COL));
+    candidatesSnap.docs.forEach(d => {
+        if (d.data().tripId === tripId) {
+            batch.delete(d.ref);
+        }
+    });
+
     await batch.commit();
+};
+
+// ─── Candidates Management ──────────────────────────
+export const saveCandidate = async (candidate) => {
+    await setDoc(doc(db, CANDIDATES_COL, candidate.id), candidate);
+};
+
+export const deleteCandidate = async (candidateId) => {
+    await deleteDoc(doc(db, CANDIDATES_COL, candidateId));
 };
 
 // ─── Ensure at least one default trip exists ───────────

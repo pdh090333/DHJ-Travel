@@ -9,7 +9,7 @@ import './index.css';
 function App() {
   const [currentView, setCurrentView] = useState('itinerary');
   const [selectedTripId, setSelectedTripId] = useState(null);
-  const [dbData, setDbData] = useState({ trips: [], activities: [] });
+  const [dbData, setDbData] = useState({ trips: [], activities: [], candidates: [] });
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {

@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from 'react';
-import { saveActivities, exportToCSV, parseCSV, generateId, saveTrip, deleteTrip } from '../db';
-import { Download, Upload, Plus, Trash2, Save, Trash } from 'lucide-react';
+import { saveActivities, exportToCSV, parseCSV, generateId, saveTrip, deleteTrip, saveCandidate, deleteCandidate } from '../db';
+import { Download, Upload, Plus, Trash2, Save, Trash, MapPin, Link as LinkIcon, ExternalLink } from 'lucide-react';
+import { Draggable } from '@fullcalendar/interaction';
 import CalendarView from './CalendarView';
 import './AdminView.css';
 
@@ -10,7 +10,28 @@ export default function AdminView({ dbData, refreshDb, selectedTripId: initialTr
         dbData.trips.find(t => t.id === (initialTripId || dbData.trips[0]?.id))?.title || ''
     );
 
-    // Auto-save title if it is blurred (debounced/event-driven)
+    const [newCandidate, setNewCandidate] = useState({ title: '', url: '', notes: '' });
+
+    // Initialize Draggable for candidates
+    useEffect(() => {
+        const draggableEl = document.getElementById('external-candidates');
+        if (draggableEl) {
+            const draggable = new Draggable(draggableEl, {
+                itemSelector: '.candidate-item-draggable',
+                eventData: function (eventEl) {
+                    const data = JSON.parse(eventEl.getAttribute('data-event'));
+                    return {
+                        title: data.title,
+                        create: true,
+                        extendedProps: { ...data, isFromCandidate: true }
+                    };
+                }
+            });
+            return () => draggable.destroy();
+        }
+    }, [dbData.candidates]); // Re-init when list changes
+
+    // Auto-save title
     useEffect(() => {
         const timeout = setTimeout(() => {
             const currentTrip = dbData.trips.find(t => t.id === selectedTripId);
@@ -65,6 +86,25 @@ export default function AdminView({ dbData, refreshDb, selectedTripId: initialTr
         setSelectedTripTitle(title);
     };
 
+    const handleAddCandidate = async () => {
+        if (!newCandidate.title) return;
+        const candidate = {
+            id: generateId(),
+            tripId: selectedTripId,
+            ...newCandidate
+        };
+        await saveCandidate(candidate);
+        await refreshDb();
+        setNewCandidate({ title: '', url: '', notes: '' });
+    };
+
+    const handleDeleteCandidate = async (id) => {
+        await deleteCandidate(id);
+        await refreshDb();
+    };
+
+    const currentCandidates = (dbData.candidates || []).filter(c => c.tripId === selectedTripId);
+
     const handleDeleteTrip = async () => {
         if (!selectedTripId) return;
         if (!confirm('정말로 이 여행과 관련된 모든 일정을 삭제하시겠습니까?')) return;
@@ -112,14 +152,65 @@ export default function AdminView({ dbData, refreshDb, selectedTripId: initialTr
                 </div>
             </div>
 
-            <div className="calendar-integration-wrapper" style={{ flex: 1, marginTop: '1rem', minHeight: 0 }}>
-                {selectedTripId ? (
-                    <CalendarView dbData={dbData} selectedTripId={selectedTripId} refreshDb={refreshDb} />
-                ) : (
-                    <div style={{ textAlign: 'center', padding: '3rem', color: 'var(--text-secondary)' }}>
-                        위에서 여행을 선택하거나 추가해 주세요.
+            <div className="admin-content-layout">
+                <div className="calendar-integration-wrapper">
+                    {selectedTripId ? (
+                        <CalendarView dbData={dbData} selectedTripId={selectedTripId} refreshDb={refreshDb} />
+                    ) : (
+                        <div style={{ textAlign: 'center', padding: '3rem', color: 'var(--text-secondary)' }}>
+                            위에서 여행을 선택하거나 추가해 주세요.
+                        </div>
+                    )}
+                </div>
+
+                <div className="candidates-sidebar">
+                    <div className="sidebar-header">
+                        <MapPin size={18} />
+                        <h3>가고 싶은 곳 (Wishlist)</h3>
                     </div>
-                )}
+
+                    <div className="candidate-add-form">
+                        <input
+                            type="text"
+                            placeholder="장소 이름"
+                            value={newCandidate.title}
+                            onChange={(e) => setNewCandidate({ ...newCandidate, title: e.target.value })}
+                        />
+                        <input
+                            type="text"
+                            placeholder="구글맵 링크 (선택)"
+                            value={newCandidate.url}
+                            onChange={(e) => setNewCandidate({ ...newCandidate, url: e.target.value })}
+                        />
+                        <textarea
+                            placeholder="메모 (선택)"
+                            value={newCandidate.notes}
+                            onChange={(e) => setNewCandidate({ ...newCandidate, notes: e.target.value })}
+                        />
+                        <button className="btn btn-primary btn-sm" onClick={handleAddCandidate}>
+                            <Plus size={16} /> 추가하기
+                        </button>
+                    </div>
+
+                    <div id="external-candidates" className="candidates-list">
+                        <p className="hint">💡 아래 항목을 달력으로 끌어다 놓으세요!</p>
+                        {currentCandidates.map(c => (
+                            <div
+                                key={c.id}
+                                className="candidate-item candidate-item-draggable"
+                                data-event={JSON.stringify(c)}
+                            >
+                                <div className="candidate-info">
+                                    <span className="candidate-title">{c.title}</span>
+                                    {c.url && <a href={c.url} target="_blank" rel="noopener noreferrer"><ExternalLink size={14} /></a>}
+                                </div>
+                                <button className="delete-candidate-btn" onClick={() => handleDeleteCandidate(c.id)}>
+                                    <Trash size={14} />
+                                </button>
+                            </div>
+                        ))}
+                    </div>
+                </div>
             </div>
         </div>
     );

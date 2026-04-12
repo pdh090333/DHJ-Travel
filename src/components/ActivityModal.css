@@ -111,10 +111,14 @@
     border-radius: 0 0 var(--radius-lg) var(--radius-lg);
 }
 
+.action-left-group {
+    display: flex;
+    gap: 0.75rem;
+}
+
 .action-right {
     display: flex;
     gap: 0.75rem;
-    margin-left: auto;
 }
 
 .btn-danger {

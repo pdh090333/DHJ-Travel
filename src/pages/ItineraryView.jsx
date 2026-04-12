@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { Star, ExternalLink } from 'lucide-react';
 import './ItineraryView.css';
 
 export default function ItineraryView({ dbData, selectedTripId }) {
@@ -132,6 +133,32 @@ export default function ItineraryView({ dbData, selectedTripId }) {
                     ))
                 )}
             </div>
+
+            {dbData.candidates && dbData.candidates.filter(c => c.tripId === selectedTripId).length > 0 && (
+                <div className="wishlist-section">
+                    <div className="wishlist-header">
+                        <Star size={20} className="wishlist-icon" />
+                        <h2>가고 싶은 곳 (Wishlist)</h2>
+                    </div>
+                    <div className="wishlist-grid">
+                        {dbData.candidates
+                            .filter(c => c.tripId === selectedTripId)
+                            .map(candidate => (
+                                <div key={candidate.id} className="wishlist-card">
+                                    <div className="wishlist-card-content">
+                                        <h4>{candidate.title}</h4>
+                                        {candidate.notes && <p className="wishlist-notes">{candidate.notes}</p>}
+                                    </div>
+                                    {candidate.url && (
+                                        <a href={candidate.url} target="_blank" rel="noopener noreferrer" className="wishlist-link">
+                                            <ExternalLink size={16} />
+                                        </a>
+                                    )}
+                                </div>
+                            ))}
+                    </div>
+                </div>
+            )}
         </div>
     );
 }
