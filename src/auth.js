@@ -1,6 +1,7 @@
 import {
     GoogleAuthProvider,
     signInWithPopup,
+    signInWithRedirect,
     signOut,
     onAuthStateChanged
 } from 'firebase/auth';
@@ -24,7 +25,18 @@ export const isAllowedUser = (user) => {
 
 export const signInWithGoogle = async () => {
     const provider = new GoogleAuthProvider();
-    return signInWithPopup(auth, provider);
+    try {
+        return await signInWithPopup(auth, provider);
+    } catch (e) {
+        // 팝업이 차단되거나 환경(모바일/시크릿)이 팝업을 막으면 전체 페이지 리다이렉트로 폴백
+        if (
+            e?.code === 'auth/popup-blocked' ||
+            e?.code === 'auth/operation-not-supported-in-this-environment'
+        ) {
+            return signInWithRedirect(auth, provider);
+        }
+        throw e;
+    }
 };
 
 export const signOutUser = async () => {
