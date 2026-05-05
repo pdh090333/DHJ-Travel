@@ -10,7 +10,7 @@ import { auth } from './firebase';
 // 여기에 본인 + 가족 Google 계정 이메일을 추가하세요.
 // firestore.rules의 화이트리스트와 동일하게 유지해야 합니다.
 export const ALLOWED_EMAILS = [
-    'pdg090333@gmail.com',
+    'pdh090333@gmail.com',
     '9693dhj@gmail.com',
     // 'family1@example.com',
     // 'family2@example.com',
