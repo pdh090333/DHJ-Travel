@@ -1,0 +1,30 @@
+rules_version = '2';
+
+// ⚠️ 이 파일은 소스 추적용입니다. 실제 적용은 Firebase 콘솔에서:
+//   콘솔 → 프로젝트 dhj-travel → Firestore Database → 규칙 → 이 파일 내용 붙여넣기 → Publish
+//
+// 화이트리스트 이메일은 src/auth.js의 ALLOWED_EMAILS와 동기화 유지.
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function isAllowed() {
+      return request.auth != null &&
+             request.auth.token.email_verified == true &&
+             request.auth.token.email in [
+               'pdg090333@gmail.com',
+               '9693dhj@gmail.com'
+             ];
+    }
+
+    match /trips/{tripId} {
+      allow read, write: if isAllowed();
+    }
+    match /activities/{activityId} {
+      allow read, write: if isAllowed();
+    }
+    match /candidates/{candidateId} {
+      allow read, write: if isAllowed();
+    }
+  }
+}

@@ -1,20 +1,53 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect } from 'react';
 import Header from './components/Header';
 import ItineraryView from './pages/ItineraryView';
 import AdminView from './pages/AdminView';
 import TripSelect from './pages/TripSelect';
+import LoginView from './pages/LoginView';
 import { loadDB, ensureDefaultTrip, generateId, saveTrip, deleteTrip } from './db';
+import { subscribeToAuth, signOutUser, isAllowedUser } from './auth';
 import './index.css';
 
 function App() {
   const [currentView, setCurrentView] = useState('itinerary');
   const [selectedTripId, setSelectedTripId] = useState(null);
   const [dbData, setDbData] = useState({ trips: [], activities: [], candidates: [] });
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
+
+  const [authReady, setAuthReady] = useState(false);
+  const [user, setUser] = useState(null);
+  const [authError, setAuthError] = useState(null);
 
   useEffect(() => {
-    initApp();
+    const unsubscribe = subscribeToAuth(async (firebaseUser) => {
+      if (!firebaseUser) {
+        setUser(null);
+        setAuthReady(true);
+        return;
+      }
+      if (!isAllowedUser(firebaseUser)) {
+        // 비인가 이메일로 로그인 시도 → 즉시 로그아웃 + 에러 표시
+        setAuthError('unauthorized');
+        setUser(null);
+        try {
+          await signOutUser();
+        } catch (e) {
+          console.error('Sign out failed:', e);
+        }
+        setAuthReady(true);
+        return;
+      }
+      setAuthError(null);
+      setUser(firebaseUser);
+      setAuthReady(true);
+    });
+    return () => unsubscribe();
   }, []);
+
+  useEffect(() => {
+    if (!user) return;
+    initApp();
+  }, [user]);
 
   const initApp = async () => {
     setLoading(true);
@@ -109,6 +142,35 @@ function App() {
     }
   };
 
+  const handleSignOut = async () => {
+    try {
+      await signOutUser();
+      setSelectedTripId(null);
+      setCurrentView('itinerary');
+      setDbData({ trips: [], activities: [], candidates: [] });
+    } catch (e) {
+      console.error('Sign out failed:', e);
+    }
+  };
+
+  if (!authReady) {
+    return (
+      <div className="loading-screen">
+        <div className="loading-spinner"></div>
+        <p>인증 확인 중...</p>
+      </div>
+    );
+  }
+
+  if (!user) {
+    return (
+      <LoginView
+        error={authError}
+        onRetry={() => setAuthError(null)}
+      />
+    );
+  }
+
   if (loading) {
     return (
       <div className="loading-screen">
@@ -117,8 +179,6 @@ function App() {
       </div>
     );
   }
-
-  const showTripSelect = !selectedTripId;
 
   return (
     <>
@@ -131,6 +191,8 @@ function App() {
         }}
         selectedTripId={selectedTripId}
         dbData={dbData}
+        user={user}
+        onSignOut={handleSignOut}
       />
       <main className="container animate-slide-up">
         {currentView === 'admin' ? (
