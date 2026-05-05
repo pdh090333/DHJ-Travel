@@ -1,7 +1,7 @@
 import React from 'react';
-import { Settings, Map as MapIcon, CalendarDays, ArrowLeft, Clock } from 'lucide-react';
+import { Settings, Map as MapIcon, CalendarDays, ArrowLeft, LogOut } from 'lucide-react';
 
-export default function Header({ currentView, onViewChange, onBackToTrips, selectedTripId, dbData }) {
+export default function Header({ currentView, onViewChange, onBackToTrips, selectedTripId, dbData, user, onSignOut }) {
     const currentTrip = dbData?.trips?.find(t => t.id === selectedTripId);
 
     return (
@@ -31,6 +31,17 @@ export default function Header({ currentView, onViewChange, onBackToTrips, selec
                         <Settings size={18} />
                         <span className="hidden-mobile">Manage</span>
                     </button>
+                    {user && (
+                        <button
+                            className="btn btn-ghost"
+                            onClick={onSignOut}
+                            title={user.email || '로그아웃'}
+                            aria-label={`로그아웃 (${user.email || ''})`}
+                        >
+                            <LogOut size={18} />
+                            <span className="hidden-mobile user-email">{user.email}</span>
+                        </button>
+                    )}
                 </div>
             </div>
         </header>
