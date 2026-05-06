@@ -89,8 +89,8 @@
 }
 
 .candidates-sidebar.is-dragging-over {
-    border: 2px solid var(--primary);
-    transform: scale(1.02);
+    outline: 2px solid var(--primary);
+    outline-offset: -2px;
     box-shadow: 0 0 20px rgba(79, 70, 229, 0.4);
     background: rgba(79, 70, 229, 0.05);
 }
