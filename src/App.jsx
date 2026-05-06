@@ -109,7 +109,6 @@ function App() {
   };
 
   const handleUnscheduleActivity = async (tripId, activityId) => {
-    // Optimistic Update: Remove from activities and add to candidates locally
     const activityToMove = dbData.activities.find(a => a.id === activityId);
     if (!activityToMove) return;
 
@@ -128,17 +127,16 @@ function App() {
     }));
 
     try {
-      // Background DB operations
-      const { saveCandidate, saveActivities } = await import('./db');
-      await saveCandidate(newCandidate);
-      const remainingActivities = dbData.activities.filter(a => a.id !== activityId);
-      await saveActivities(tripId, remainingActivities);
-      // Final sync to be sure
+      const { saveCandidate, deleteActivity } = await import('./db');
+      await Promise.all([
+        saveCandidate(newCandidate),
+        deleteActivity(activityId)
+      ]);
       await refreshDb();
     } catch (e) {
       console.error('Failed to unschedule activity:', e);
       alert('일정 취소 중 오류가 발생했습니다.');
-      await refreshDb(); // Revert on failure
+      await refreshDb();
     }
   };
 

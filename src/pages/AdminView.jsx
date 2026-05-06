@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { saveActivities, exportToCSV, parseCSV, generateId, saveTrip, deleteTrip, saveCandidate, deleteCandidate } from '../db';
+import { replaceTripActivities, exportToCSV, parseCSV, generateId, saveTrip, deleteTrip, saveCandidate, deleteCandidate } from '../db';
 import { Download, Upload, Plus, Trash2, Save, Trash, MapPin, Link as LinkIcon, ExternalLink } from 'lucide-react';
 import { Draggable } from '@fullcalendar/interaction';
 import CalendarView from './CalendarView';
@@ -80,12 +80,10 @@ export default function AdminView({ dbData, refreshDb, selectedTripId: initialTr
         reader.onload = async (evt) => {
             try {
                 const parsed = parseCSV(evt.target.result, selectedTripId);
-                // The newly parsed CSV replaces only the activities for the current trip.
-                const otherTripActivities = dbData.activities.filter(a => a.tripId !== selectedTripId);
-                await saveActivities(selectedTripId, [...otherTripActivities, ...parsed]);
+                await replaceTripActivities(selectedTripId, parsed);
                 await refreshDb();
                 alert('일정을 성공적으로 불러왔습니다!');
-            } catch (err) {
+            } catch {
                 alert('CSV 불러오기 실패: 올바른 형식인지 확인하세요.');
             }
         };
