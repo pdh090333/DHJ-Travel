@@ -21,7 +21,10 @@
     border: 1px solid var(--border-color);
     box-shadow: var(--shadow-md);
     padding: 1rem;
-    overflow: hidden;
+    /* overflow: visible so the FullCalendar event ghost isn't clipped
+       when dragging out toward the wishlist sidebar */
+    overflow: visible;
+    min-height: 0;
 }
 
 /* FullCalendar Customizations to match theme */
