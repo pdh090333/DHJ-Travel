@@ -3,7 +3,7 @@ import FullCalendar from '@fullcalendar/react';
 import timeGridPlugin from '@fullcalendar/timegrid';
 import interactionPlugin from '@fullcalendar/interaction';
 import ActivityModal from '../components/ActivityModal';
-import { saveActivities, generateId } from '../db';
+import { saveActivity, deleteActivity, generateId } from '../db';
 import './CalendarView.css';
 
 export default function CalendarView({ dbData, selectedTripId, refreshDb, onDragOverWishlist, onUnschedule }) {
@@ -39,20 +39,23 @@ export default function CalendarView({ dbData, selectedTripId, refreshDb, onDrag
 
     const handleEventChange = async (changeInfo) => {
         const { event } = changeInfo;
+        const original = activities.find(a => a.id === event.id);
+        if (!original) return;
         const newStart = event.start;
         const newEnd = event.end || new Date(newStart.getTime() + 60 * 60 * 1000);
         const offset = newStart.getTimezoneOffset() * 60000;
         const localStart = new Date(newStart.getTime() - offset);
         const localEnd = new Date(newEnd.getTime() - offset);
-        const updatedActivities = activities.map(a =>
-            a.id === event.id
-                ? { ...a, date: localStart.toISOString().split('T')[0], startTime: localStart.toISOString().slice(11, 16), endTime: localEnd.toISOString().slice(11, 16) }
-                : a
-        );
+        const updated = {
+            ...original,
+            date: localStart.toISOString().split('T')[0],
+            startTime: localStart.toISOString().slice(11, 16),
+            endTime: localEnd.toISOString().slice(11, 16)
+        };
         try {
-            await saveActivities(selectedTripId, updatedActivities);
+            await saveActivity(updated);
             await refreshDb();
-        } catch (e) {
+        } catch {
             alert('저장 실패');
             changeInfo.revert();
         }
@@ -77,23 +80,23 @@ export default function CalendarView({ dbData, selectedTripId, refreshDb, onDrag
     };
 
     const handleSaveModal = async (editedActivity) => {
-        const updated = editedActivity.id.startsWith('new_')
-            ? [...activities, { ...editedActivity, id: editedActivity.id.replace('new_', '') }]
-            : activities.map(a => a.id === editedActivity.id ? editedActivity : a);
+        const toSave = editedActivity.id.startsWith('new_')
+            ? { ...editedActivity, id: editedActivity.id.replace('new_', ''), tripId: selectedTripId }
+            : { ...editedActivity, tripId: selectedTripId };
         try {
-            await saveActivities(selectedTripId, updated);
+            await saveActivity(toSave);
             await refreshDb();
             setSelectedActivity(null);
-        } catch (e) { alert('실패'); }
+        } catch { alert('실패'); }
     };
 
     const handleDeleteModal = async (id) => {
         if (!confirm('삭제?')) return;
         try {
-            await saveActivities(selectedTripId, activities.filter(a => a.id !== id));
+            await deleteActivity(id);
             await refreshDb();
             setSelectedActivity(null);
-        } catch (e) { alert('실패'); }
+        } catch { alert('실패'); }
     };
 
     const handleEventReceive = async (info) => {
@@ -110,10 +113,12 @@ export default function CalendarView({ dbData, selectedTripId, refreshDb, onDrag
         };
         try {
             const { deleteCandidate } = await import('../db');
-            await saveActivities(selectedTripId, [...activities, newAct]);
-            await deleteCandidate(candidateData.id);
+            await Promise.all([
+                saveActivity(newAct),
+                deleteCandidate(candidateData.id)
+            ]);
             await refreshDb();
-        } catch (e) { info.event.remove(); }
+        } catch { info.event.remove(); }
     };
 
     const handleEventDragStart = () => {
