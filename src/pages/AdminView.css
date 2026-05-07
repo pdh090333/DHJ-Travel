@@ -175,7 +175,9 @@
     justify-content: space-between;
     align-items: flex-start;
     cursor: grab;
-    transition: all 0.2s ease;
+    /* explicit list — `transition: all` interpolates transform every
+       frame during drag and was a paint-storm contributor */
+    transition: border-color 0.15s ease, transform 0.15s ease, box-shadow 0.15s ease;
 }
 
 .candidate-item:hover {
@@ -184,11 +186,13 @@
     box-shadow: var(--shadow-md);
 }
 
-/* While the user is dragging an event over the wishlist, the cursor passes
-   over each candidate-item and would normally trigger the lift+shadow
-   hover effect on every one — that's a paint storm at 60Hz. Disable the
-   hover lift during drag so the cursor stays responsive. */
-.candidates-sidebar.is-dragging-over .candidate-item:hover {
+/* Kill the hover lift during BOTH drag directions. The cursor passes over
+   each candidate-item and would otherwise trigger the lift+shadow on every
+   one — that's a 60Hz paint storm.
+   - is-dragging-over:           cursor is dragging FROM calendar OVER wishlist
+   - is-dragging-from-wishlist:  cursor is dragging an item OUT of wishlist */
+.candidates-sidebar.is-dragging-over .candidate-item:hover,
+.candidates-sidebar.is-dragging-from-wishlist .candidate-item:hover {
     transform: none;
     box-shadow: none;
     border-color: var(--border-color);
@@ -239,16 +243,18 @@
 }
 
 .drop-placeholder {
-    /* absolute so adding/removing this node doesn't reflow the
-       wishlist's flex children — the ghost's coordinate frame stayed
-       glued to the cursor's offset only as long as nothing here moved. */
+    /* Always rendered, hidden by default — visibility is class-toggled
+       on the sidebar so we never remount this node during a drag. Earlier
+       versions conditionally rendered this from React state, but each
+       toggle re-rendered AdminView+CalendarView and shook the FullCalendar
+       drag mirror loose from the cursor. */
     position: absolute;
     inset: 0.5rem;
     border: 3px dashed var(--primary);
     background: rgba(79, 70, 229, 0.12);
     color: var(--primary);
     border-radius: var(--radius-lg);
-    display: flex;
+    display: none;
     flex-direction: column;
     align-items: center;
     justify-content: center;
@@ -258,6 +264,10 @@
     text-align: center;
     pointer-events: none;
     z-index: 10;
+}
+
+.candidates-sidebar.is-dragging-over .drop-placeholder {
+    display: flex;
 }
 
 @keyframes fadeIn {
