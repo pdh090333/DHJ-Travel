@@ -9,6 +9,7 @@ import './CalendarView.css';
 export default function CalendarView({ dbData, selectedTripId, refreshDb, onDragOverWishlist, onUnschedule }) {
     const [selectedActivity, setSelectedActivity] = useState(null);
     const wishlistRectRef = useRef(null);
+    const wasInsideWishlistRef = useRef(false);
     const activities = dbData.activities.filter(a => a.tripId === selectedTripId);
 
     const firstDate = activities
@@ -124,6 +125,7 @@ export default function CalendarView({ dbData, selectedTripId, refreshDb, onDrag
     const handleEventDragStart = () => {
         const sidebar = document.querySelector('.candidates-sidebar');
         if (sidebar) wishlistRectRef.current = sidebar.getBoundingClientRect();
+        wasInsideWishlistRef.current = false;
     };
 
     const handleEventDrag = (info) => {
@@ -136,9 +138,15 @@ export default function CalendarView({ dbData, selectedTripId, refreshDb, onDrag
             const sb = document.querySelector('.candidates-sidebar');
             if (sb) wishlistRectRef.current = sb.getBoundingClientRect();
         }
-        if (wishlistRectRef.current) {
-            const r = wishlistRectRef.current;
-            onDragOverWishlist(x >= r.left && x <= r.right && y >= r.top && y <= r.bottom);
+        if (!wishlistRectRef.current) return;
+        const r = wishlistRectRef.current;
+        const isInside = x >= r.left && x <= r.right && y >= r.top && y <= r.bottom;
+        // Only flip the highlight when crossing the wishlist boundary —
+        // calling setState every mousemove triggers an AdminView re-render
+        // and made the cursor feel sluggish.
+        if (isInside !== wasInsideWishlistRef.current) {
+            wasInsideWishlistRef.current = isInside;
+            onDragOverWishlist(isInside);
         }
     };
 
