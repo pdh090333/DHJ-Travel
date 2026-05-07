@@ -20,6 +20,13 @@ export default function AdminView({ dbData, refreshDb, selectedTripId: initialTr
     const sidebarRef = useRef(null);
     const setSidebarDragOver = (over) => {
         sidebarRef.current?.classList.toggle('is-dragging-over', !!over);
+        // FullCalendar's drag mirror is positioned in the calendar grid's
+        // local coordinate frame, so once the cursor leaves the calendar
+        // and enters the wishlist the mirror lands ~500px off-cursor and
+        // can't be coaxed back. Hide it while over the wishlist — the
+        // sidebar's own drop-placeholder + outline give enough feedback,
+        // and the actual drop position is read from the cursor anyway.
+        document.body.classList.toggle('hide-fc-mirror', !!over);
     };
 
     // Initialize Draggable for candidates

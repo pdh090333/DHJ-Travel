@@ -83,3 +83,13 @@
     opacity: 0.8 !important;
     z-index: 9999 !important;
 }
+
+/* Hide FullCalendar's drag mirror while the cursor is over the wishlist.
+   The mirror's left/top is computed in the calendar grid's local frame
+   and lands hundreds of px off-cursor once the pointer crosses out of
+   the calendar. The wishlist's own drop-placeholder + sidebar outline
+   give enough visual feedback there. Toggled from AdminView when the
+   wishlist boundary is crossed. */
+body.hide-fc-mirror .fc-event-mirror {
+    display: none !important;
+}
