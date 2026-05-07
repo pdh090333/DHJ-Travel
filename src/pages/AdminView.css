@@ -89,10 +89,12 @@
 }
 
 .candidates-sidebar.is-dragging-over {
-    outline: 2px solid var(--primary);
-    outline-offset: -2px;
-    box-shadow: 0 0 20px rgba(79, 70, 229, 0.4);
-    background: rgba(79, 70, 229, 0.05);
+    outline: 3px solid var(--primary);
+    outline-offset: -3px;
+    background: rgba(79, 70, 229, 0.08);
+    /* box-shadow intentionally omitted: a 20px blur on a sidebar-sized
+       element repaints a huge area every frame and felt sluggish during
+       drag. outline + background tint give enough feedback. */
 }
 
 .candidates-sidebar.is-dragging-over .sidebar-header {
