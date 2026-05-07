@@ -85,7 +85,10 @@
     flex-direction: column;
     overflow: hidden;
     box-shadow: var(--shadow-sm);
-    transition: all 0.3s ease;
+    /* explicit list — `transition: all` would try to interpolate every
+       property change including layout-affecting ones, which is expensive
+       during drag */
+    transition: outline-color 0.15s ease, background-color 0.15s ease;
 }
 
 .candidates-sidebar.is-dragging-over {
@@ -152,6 +155,8 @@
     display: flex;
     flex-direction: column;
     gap: 0.75rem;
+    /* anchor for drop-placeholder so it stays out of the flex flow */
+    position: relative;
 }
 
 .hint {
@@ -177,6 +182,16 @@
     border-color: var(--primary);
     transform: translateY(-2px);
     box-shadow: var(--shadow-md);
+}
+
+/* While the user is dragging an event over the wishlist, the cursor passes
+   over each candidate-item and would normally trigger the lift+shadow
+   hover effect on every one — that's a paint storm at 60Hz. Disable the
+   hover lift during drag so the cursor stays responsive. */
+.candidates-sidebar.is-dragging-over .candidate-item:hover {
+    transform: none;
+    box-shadow: none;
+    border-color: var(--border-color);
 }
 
 .candidate-item:active {
@@ -224,10 +239,14 @@
 }
 
 .drop-placeholder {
+    /* absolute so adding/removing this node doesn't reflow the
+       wishlist's flex children — the ghost's coordinate frame stayed
+       glued to the cursor's offset only as long as nothing here moved. */
+    position: absolute;
+    inset: 0.5rem;
     border: 3px dashed var(--primary);
-    background: rgba(var(--primary), 0.15);
+    background: rgba(79, 70, 229, 0.12);
     color: var(--primary);
-    padding: 2.5rem 1rem;
     border-radius: var(--radius-lg);
     display: flex;
     flex-direction: column;
@@ -237,27 +256,8 @@
     font-size: 1rem;
     font-weight: 700;
     text-align: center;
-    animation: placeholderPulse 2s infinite ease-in-out;
-    margin-bottom: 1rem;
     pointer-events: none;
     z-index: 10;
-}
-
-@keyframes placeholderPulse {
-    0% {
-        opacity: 0.6;
-        transform: scale(1);
-    }
-
-    50% {
-        opacity: 1;
-        transform: scale(1.02);
-    }
-
-    100% {
-        opacity: 0.6;
-        transform: scale(1);
-    }
 }
 
 @keyframes fadeIn {
