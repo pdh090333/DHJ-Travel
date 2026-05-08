@@ -10,6 +10,12 @@ export default function CalendarView({ dbData, selectedTripId, refreshDb, onDrag
     const [selectedActivity, setSelectedActivity] = useState(null);
     const wishlistRectRef = useRef(null);
     const wasInsideWishlistRef = useRef(false);
+    // Offset between the cursor and the FC drag mirror's top-left at the
+    // moment the drag starts. Captured so we can re-pin the mirror to the
+    // cursor in viewport coords while it's over the wishlist — FC's own
+    // calendar-grid-local positioning shifts with viewport size and lands
+    // hundreds of px off-cursor in a maximized window.
+    const dragGrabOffsetRef = useRef({ x: 0, y: 0 });
     const activities = dbData.activities.filter(a => a.tripId === selectedTripId);
 
     const firstDate = activities
@@ -122,10 +128,47 @@ export default function CalendarView({ dbData, selectedTripId, refreshDb, onDrag
         } catch { info.event.remove(); }
     };
 
-    const handleEventDragStart = () => {
+    const handleEventDragStart = (info) => {
         const sidebar = document.querySelector('.candidates-sidebar');
         if (sidebar) wishlistRectRef.current = sidebar.getBoundingClientRect();
         wasInsideWishlistRef.current = false;
+
+        // Capture cursor→mirror grab offset on next tick (FC creates the
+        // mirror element synchronously after this hook). Used later to
+        // re-pin the mirror to the cursor in viewport coords.
+        setTimeout(() => {
+            const mirror = document.querySelector('.fc-event-mirror');
+            const js = info && info.jsEvent;
+            if (!mirror || !js) return;
+            const r = mirror.getBoundingClientRect();
+            const cx = js.clientX ?? (js.touches?.[0]?.clientX) ?? 0;
+            const cy = js.clientY ?? (js.touches?.[0]?.clientY) ?? 0;
+            if (!cx || !cy) return;
+            dragGrabOffsetRef.current = { x: cx - r.left, y: cy - r.top };
+        }, 0);
+    };
+
+    const resetMirrorOverride = () => {
+        const mirror = document.querySelector('.fc-event-mirror');
+        if (!mirror) return;
+        // Only clear what we set — leaves FC's own positioning intact
+        // for the calendar-internal portion of the drag.
+        mirror.style.position = '';
+        mirror.style.left = '';
+        mirror.style.top = '';
+        mirror.style.zIndex = '';
+        mirror.style.pointerEvents = '';
+    };
+
+    const pinMirrorToCursor = (x, y) => {
+        const mirror = document.querySelector('.fc-event-mirror');
+        if (!mirror) return;
+        const off = dragGrabOffsetRef.current;
+        mirror.style.position = 'fixed';
+        mirror.style.left = (x - off.x) + 'px';
+        mirror.style.top = (y - off.y) + 'px';
+        mirror.style.zIndex = '99999';
+        mirror.style.pointerEvents = 'none';
     };
 
     const handleEventDrag = (info) => {
@@ -147,11 +190,20 @@ export default function CalendarView({ dbData, selectedTripId, refreshDb, onDrag
         if (isInside !== wasInsideWishlistRef.current) {
             wasInsideWishlistRef.current = isInside;
             onDragOverWishlist(isInside);
+            // Crossing back into the calendar: hand the mirror back to FC.
+            if (!isInside) resetMirrorOverride();
         }
+        // While over the wishlist, force the mirror to track the cursor in
+        // viewport coords. FC's own positioning is calendar-grid-local and
+        // lands hundreds of px off-cursor as soon as the cursor crosses
+        // out — especially in a maximized/fullscreen window where the
+        // grid's local frame and the viewport diverge.
+        if (isInside) pinMirrorToCursor(x, y);
     };
 
     const handleEventDragStop = (info) => {
         onDragOverWishlist(false);
+        resetMirrorOverride();
         const js = info.jsEvent;
         const touch = (js.touches && js.touches[0]) || (js.changedTouches && js.changedTouches[0]);
         const x = js.clientX || (touch ? touch.clientX : 0);
