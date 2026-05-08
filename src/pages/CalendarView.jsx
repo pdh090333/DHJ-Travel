@@ -137,7 +137,7 @@ export default function CalendarView({ dbData, selectedTripId, refreshDb, onDrag
         // mirror element synchronously after this hook). Used later to
         // re-pin the mirror to the cursor in viewport coords.
         setTimeout(() => {
-            const mirror = document.querySelector('.fc-event-mirror');
+            const mirror = document.querySelector('.fc-event-dragging');
             const js = info && info.jsEvent;
             if (!mirror || !js) return;
             const r = mirror.getBoundingClientRect();
@@ -149,7 +149,7 @@ export default function CalendarView({ dbData, selectedTripId, refreshDb, onDrag
     };
 
     const resetMirrorOverride = () => {
-        const mirror = document.querySelector('.fc-event-mirror');
+        const mirror = document.querySelector('.fc-event-dragging');
         if (!mirror) return;
         // Only clear what we set — leaves FC's own positioning intact
         // for the calendar-internal portion of the drag.
@@ -161,7 +161,7 @@ export default function CalendarView({ dbData, selectedTripId, refreshDb, onDrag
     };
 
     const pinMirrorToCursor = (x, y) => {
-        const mirror = document.querySelector('.fc-event-mirror');
+        const mirror = document.querySelector('.fc-event-dragging');
         if (!mirror) return;
         const off = dragGrabOffsetRef.current;
         mirror.style.position = 'fixed';
