@@ -6,7 +6,7 @@ import ActivityModal from '../components/ActivityModal';
 import { saveActivity, deleteActivity, generateId } from '../db';
 import './CalendarView.css';
 
-const BUILD_TAG = 'wishlist-drag v7 — boundary on calendar exit, hide harness';
+const BUILD_TAG = 'wishlist-drag v8 — window mousemove (eventDrag was a no-op)';
 
 export default function CalendarView({ dbData, selectedTripId, refreshDb, onDragOverWishlist, onUnschedule }) {
     // Build identifier — if the user does Ctrl+Shift+R and this doesn't
@@ -37,6 +37,11 @@ export default function CalendarView({ dbData, selectedTripId, refreshDb, onDrag
     const mirrorObserverRef = useRef(null);
     const mirrorElRef = useRef(null);
     const ghostElRef = useRef(null);
+    // Global pointermove listener registered for the duration of the drag.
+    // FC 6.x has no `eventDrag` option (the prop was silently ignored),
+    // so we have to subscribe to mousemove ourselves to get per-frame
+    // cursor coordinates during the drag.
+    const moveListenerRef = useRef(null);
     const activities = dbData.activities.filter(a => a.tripId === selectedTripId);
 
     const firstDate = activities
@@ -200,66 +205,64 @@ export default function CalendarView({ dbData, selectedTripId, refreshDb, onDrag
         ghost.textContent = info?.event?.title || '';
         document.body.appendChild(ghost);
         ghostElRef.current = ghost;
-    };
 
-    const handleEventDrag = (info) => {
-        const js = info.jsEvent;
-        const touch = (js.touches && js.touches[0]) || (js.changedTouches && js.changedTouches[0]);
-        const x = js.clientX || (touch ? touch.clientX : 0);
-        const y = js.clientY || (touch ? touch.clientY : 0);
-        if (!x || !y) return;
+        // Subscribe to global pointer movement for the duration of the
+        // drag. FC's `eventDrag` prop is a no-op in 6.x — earlier fixes
+        // never ran because the callback was never invoked. mousemove
+        // on window fires during FC's drag the same way it would for
+        // any other pointer interaction.
+        const onMove = (e) => {
+            const t = e.touches?.[0] || e.changedTouches?.[0];
+            const x = e.clientX || (t ? t.clientX : 0);
+            const y = e.clientY || (t ? t.clientY : 0);
+            if (!x || !y) return;
 
-        // Calendar boundary — primary trigger for hiding FC's mirror and
-        // showing our own ghost. As soon as the cursor leaves the
-        // calendar, FC's harness positioning is no longer relatable to
-        // viewport coords.
-        if (!calendarRectRef.current) {
-            const cal = document.querySelector('.calendar-container');
-            if (cal) calendarRectRef.current = cal.getBoundingClientRect();
-        }
-        const calR = calendarRectRef.current;
-        const isOutsideCalendar = !!calR && (
-            x < calR.left || x > calR.right || y < calR.top || y > calR.bottom
-        );
-
-        if (isOutsideCalendar !== wasOutsideCalendarRef.current) {
-            wasOutsideCalendarRef.current = isOutsideCalendar;
-            if (mirrorElRef.current) {
-                mirrorElRef.current.style.visibility = isOutsideCalendar ? 'hidden' : '';
+            const calR = calendarRectRef.current;
+            const isOutsideCalendar = !!calR && (
+                x < calR.left || x > calR.right || y < calR.top || y > calR.bottom
+            );
+            if (isOutsideCalendar !== wasOutsideCalendarRef.current) {
+                wasOutsideCalendarRef.current = isOutsideCalendar;
+                if (mirrorElRef.current) {
+                    mirrorElRef.current.style.visibility = isOutsideCalendar ? 'hidden' : '';
+                }
             }
-        }
 
-        const ghost = ghostElRef.current;
-        if (ghost) {
-            if (isOutsideCalendar) {
-                ghost.style.display = 'block';
-                ghost.style.left = (x + 12) + 'px';
-                ghost.style.top = (y + 12) + 'px';
-            } else if (ghost.style.display !== 'none') {
-                ghost.style.display = 'none';
+            const g = ghostElRef.current;
+            if (g) {
+                if (isOutsideCalendar) {
+                    g.style.display = 'block';
+                    g.style.left = (x + 12) + 'px';
+                    g.style.top = (y + 12) + 'px';
+                } else if (g.style.display !== 'none') {
+                    g.style.display = 'none';
+                }
             }
-        }
 
-        // Wishlist boundary — separate concern: drives the sidebar's
-        // outline + drop placeholder via setSidebarDragOver.
-        if (!wishlistRectRef.current) {
-            const sb = document.querySelector('.candidates-sidebar');
-            if (sb) wishlistRectRef.current = sb.getBoundingClientRect();
-        }
-        if (wishlistRectRef.current) {
             const wr = wishlistRectRef.current;
-            const isInsideWishlist = x >= wr.left && x <= wr.right && y >= wr.top && y <= wr.bottom;
-            if (isInsideWishlist !== wasInsideWishlistRef.current) {
-                wasInsideWishlistRef.current = isInsideWishlist;
-                onDragOverWishlist(isInsideWishlist);
+            if (wr) {
+                const isInsideWishlist =
+                    x >= wr.left && x <= wr.right && y >= wr.top && y <= wr.bottom;
+                if (isInsideWishlist !== wasInsideWishlistRef.current) {
+                    wasInsideWishlistRef.current = isInsideWishlist;
+                    onDragOverWishlist(isInsideWishlist);
+                }
             }
-        }
+        };
+        window.addEventListener('mousemove', onMove, { passive: true });
+        window.addEventListener('touchmove', onMove, { passive: true });
+        moveListenerRef.current = onMove;
     };
 
     const handleEventDragStop = (info) => {
         onDragOverWishlist(false);
 
-        // Cleanup: stop observer, restore FC mirror, remove our ghost.
+        // Cleanup: stop move listener, observer, restore FC mirror, remove ghost.
+        if (moveListenerRef.current) {
+            window.removeEventListener('mousemove', moveListenerRef.current);
+            window.removeEventListener('touchmove', moveListenerRef.current);
+            moveListenerRef.current = null;
+        }
         if (mirrorObserverRef.current) {
             mirrorObserverRef.current.disconnect();
             mirrorObserverRef.current = null;
@@ -299,7 +302,7 @@ export default function CalendarView({ dbData, selectedTripId, refreshDb, onDrag
                     events={events} editable={true} selectable={true} selectMirror={true}
                     eventChange={handleEventChange} eventClick={handleEventClick} select={handleDateSelect}
                     eventReceive={handleEventReceive} eventDragStop={handleEventDragStop}
-                    eventDragStart={handleEventDragStart} eventDrag={handleEventDrag}
+                    eventDragStart={handleEventDragStart}
                     droppable={true} height="100%" locale="ko"
                     headerToolbar={{ left: 'prev,next today', center: 'title', right: 'timeGridWeek,timeGridDay' }}
                 />
