@@ -18,15 +18,53 @@ export default function AdminView({ dbData, refreshDb, selectedTripId: initialTr
     // FullCalendar's events array and snapped the drag mirror away from
     // the cursor. Direct DOM toggling sidesteps React entirely.
     const sidebarRef = useRef(null);
+    const fcMirrorCleanupRef = useRef([]);
+
+    // FullCalendar's drag mirror is positioned in the calendar grid's
+    // local coordinate frame. Once the cursor leaves the calendar and
+    // enters the wishlist the mirror lands ~500px off-cursor and can't
+    // be coaxed back. Hide it while over the wishlist — the sidebar's
+    // own drop-placeholder + outline give enough feedback, and the drop
+    // position is read from the cursor in handleEventDragStop anyway.
+    //
+    // We hide via inline style (stronger than any FC inline positioning)
+    // and cast a wide net on selectors because FC versions name the
+    // mirror element differently. If our selector misses, we log every
+    // floating element in the calendar so we can pin it down.
+    const hideFCMirror = () => {
+        const els = document.querySelectorAll(
+            '.fc-event-mirror, [class*="fc-event-mirror"], .fc-helper'
+        );
+        if (!els.length) {
+            const seen = new Set();
+            document.querySelectorAll('.fc *').forEach(el => {
+                const cs = window.getComputedStyle(el);
+                if (cs.position === 'absolute' || cs.position === 'fixed') {
+                    seen.add(el.className || el.tagName);
+                }
+            });
+            console.warn('[wishlist] FC mirror not matched. Floating .fc descendants:', [...seen]);
+            return;
+        }
+        els.forEach(el => {
+            if (el.style.display === 'none') return;
+            fcMirrorCleanupRef.current.push([el, el.style.display]);
+            el.style.display = 'none';
+        });
+    };
+
+    const showFCMirror = () => {
+        fcMirrorCleanupRef.current.forEach(([el, prev]) => {
+            el.style.display = prev || '';
+        });
+        fcMirrorCleanupRef.current = [];
+    };
+
     const setSidebarDragOver = (over) => {
         sidebarRef.current?.classList.toggle('is-dragging-over', !!over);
-        // FullCalendar's drag mirror is positioned in the calendar grid's
-        // local coordinate frame, so once the cursor leaves the calendar
-        // and enters the wishlist the mirror lands ~500px off-cursor and
-        // can't be coaxed back. Hide it while over the wishlist — the
-        // sidebar's own drop-placeholder + outline give enough feedback,
-        // and the actual drop position is read from the cursor anyway.
         document.body.classList.toggle('hide-fc-mirror', !!over);
+        if (over) hideFCMirror();
+        else showFCMirror();
     };
 
     // Initialize Draggable for candidates
