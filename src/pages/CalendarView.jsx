@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import FullCalendar from '@fullcalendar/react';
 import timeGridPlugin from '@fullcalendar/timegrid';
 import interactionPlugin from '@fullcalendar/interaction';
@@ -6,16 +6,29 @@ import ActivityModal from '../components/ActivityModal';
 import { saveActivity, deleteActivity, generateId } from '../db';
 import './CalendarView.css';
 
+const BUILD_TAG = 'wishlist-drag v6 — own-ghost + observer';
+
 export default function CalendarView({ dbData, selectedTripId, refreshDb, onDragOverWishlist, onUnschedule }) {
+    // Build identifier — if the user does Ctrl+Shift+R and this doesn't
+    // appear in the console, they didn't get the new bundle and any
+    // verification is meaningless.
+    useEffect(() => { console.log('[Travel]', BUILD_TAG); }, []);
+
     const [selectedActivity, setSelectedActivity] = useState(null);
     const wishlistRectRef = useRef(null);
     const wasInsideWishlistRef = useRef(false);
-    // Offset between the cursor and the FC drag mirror's top-left at the
-    // moment the drag starts. Captured so we can re-pin the mirror to the
-    // cursor in viewport coords while it's over the wishlist — FC's own
-    // calendar-grid-local positioning shifts with viewport size and lands
-    // hundreds of px off-cursor in a maximized window.
-    const dragGrabOffsetRef = useRef({ x: 0, y: 0 });
+    // Refs for the new approach:
+    //  - mirrorObserverRef:  MutationObserver that captures whatever node FC
+    //                        inserts as the drag mirror, regardless of class.
+    //  - mirrorElRef:         the captured mirror element, so we can hide it
+    //                        while over the wishlist.
+    //  - ghostElRef:          our own cursor-following ghost we create from
+    //                        scratch and append to <body>. Bypasses FC's
+    //                        coordinate frame entirely — no selector match
+    //                        problems, no calendar-grid-local positioning.
+    const mirrorObserverRef = useRef(null);
+    const mirrorElRef = useRef(null);
+    const ghostElRef = useRef(null);
     const activities = dbData.activities.filter(a => a.tripId === selectedTripId);
 
     const firstDate = activities
@@ -133,42 +146,49 @@ export default function CalendarView({ dbData, selectedTripId, refreshDb, onDrag
         if (sidebar) wishlistRectRef.current = sidebar.getBoundingClientRect();
         wasInsideWishlistRef.current = false;
 
-        // Capture cursor→mirror grab offset on next tick (FC creates the
-        // mirror element synchronously after this hook). Used later to
-        // re-pin the mirror to the cursor in viewport coords.
-        setTimeout(() => {
-            const mirror = document.querySelector('.fc-event-dragging');
-            const js = info && info.jsEvent;
-            if (!mirror || !js) return;
-            const r = mirror.getBoundingClientRect();
-            const cx = js.clientX ?? (js.touches?.[0]?.clientX) ?? 0;
-            const cy = js.clientY ?? (js.touches?.[0]?.clientY) ?? 0;
-            if (!cx || !cy) return;
-            dragGrabOffsetRef.current = { x: cx - r.left, y: cy - r.top };
-        }, 0);
-    };
+        // Capture FC's mirror element via MutationObserver — selector-free.
+        // FC inserts the mirror as a *new* DOM node sometime after this
+        // callback fires; we don't care which class it ends up with.
+        mirrorElRef.current = null;
+        if (mirrorObserverRef.current) mirrorObserverRef.current.disconnect();
+        const obs = new MutationObserver((records) => {
+            if (mirrorElRef.current) return;
+            for (const rec of records) {
+                for (const n of rec.addedNodes) {
+                    if (n.nodeType !== 1) continue;
+                    const cls = n.getAttribute?.('class') || '';
+                    const looksLikeMirror =
+                        cls.includes('fc-event') ||
+                        n.querySelector?.('.fc-event-main, .fc-event-title');
+                    if (looksLikeMirror) {
+                        mirrorElRef.current = n;
+                        console.log('[wishlist] mirror captured:', cls || n.tagName);
+                        obs.disconnect();
+                        return;
+                    }
+                }
+            }
+        });
+        obs.observe(document.body, { childList: true, subtree: true });
+        mirrorObserverRef.current = obs;
 
-    const resetMirrorOverride = () => {
-        const mirror = document.querySelector('.fc-event-dragging');
-        if (!mirror) return;
-        // Only clear what we set — leaves FC's own positioning intact
-        // for the calendar-internal portion of the drag.
-        mirror.style.position = '';
-        mirror.style.left = '';
-        mirror.style.top = '';
-        mirror.style.zIndex = '';
-        mirror.style.pointerEvents = '';
-    };
-
-    const pinMirrorToCursor = (x, y) => {
-        const mirror = document.querySelector('.fc-event-dragging');
-        if (!mirror) return;
-        const off = dragGrabOffsetRef.current;
-        mirror.style.position = 'fixed';
-        mirror.style.left = (x - off.x) + 'px';
-        mirror.style.top = (y - off.y) + 'px';
-        mirror.style.zIndex = '99999';
-        mirror.style.pointerEvents = 'none';
+        // Build our own cursor-following ghost. This is the actual visible
+        // feedback over the wishlist — independent of FC's mirror. It's
+        // position:fixed so it tracks the cursor in viewport coords with
+        // zero involvement from FC's calendar-grid frame.
+        const ghost = document.createElement('div');
+        ghost.style.cssText = [
+            'position:fixed', 'z-index:99998', 'pointer-events:none',
+            'background:var(--primary,#4f46e5)', 'color:white',
+            'padding:6px 12px', 'border-radius:6px',
+            'font-size:0.85rem', 'font-weight:600', 'opacity:0.92',
+            'box-shadow:0 4px 12px rgba(0,0,0,0.2)',
+            'white-space:nowrap', 'display:none',
+            'left:0', 'top:0',
+        ].join(';');
+        ghost.textContent = info?.event?.title || '';
+        document.body.appendChild(ghost);
+        ghostElRef.current = ghost;
     };
 
     const handleEventDrag = (info) => {
@@ -184,26 +204,48 @@ export default function CalendarView({ dbData, selectedTripId, refreshDb, onDrag
         if (!wishlistRectRef.current) return;
         const r = wishlistRectRef.current;
         const isInside = x >= r.left && x <= r.right && y >= r.top && y <= r.bottom;
-        // Only flip the highlight when crossing the wishlist boundary —
-        // calling setState every mousemove triggers an AdminView re-render
-        // and made the cursor feel sluggish.
+
         if (isInside !== wasInsideWishlistRef.current) {
             wasInsideWishlistRef.current = isInside;
             onDragOverWishlist(isInside);
-            // Crossing back into the calendar: hand the mirror back to FC.
-            if (!isInside) resetMirrorOverride();
+            // Hide FC's mirror while over wishlist. Our own ghost stands
+            // in. When crossing back into the calendar, restore the FC
+            // mirror so its slot snapping works again.
+            if (mirrorElRef.current) {
+                mirrorElRef.current.style.visibility = isInside ? 'hidden' : '';
+            }
         }
-        // While over the wishlist, force the mirror to track the cursor in
-        // viewport coords. FC's own positioning is calendar-grid-local and
-        // lands hundreds of px off-cursor as soon as the cursor crosses
-        // out — especially in a maximized/fullscreen window where the
-        // grid's local frame and the viewport diverge.
-        if (isInside) pinMirrorToCursor(x, y);
+
+        // Pin our own ghost to the cursor while over the wishlist.
+        const ghost = ghostElRef.current;
+        if (ghost) {
+            if (isInside) {
+                ghost.style.display = 'block';
+                ghost.style.left = (x + 12) + 'px';
+                ghost.style.top = (y + 12) + 'px';
+            } else if (ghost.style.display !== 'none') {
+                ghost.style.display = 'none';
+            }
+        }
     };
 
     const handleEventDragStop = (info) => {
         onDragOverWishlist(false);
-        resetMirrorOverride();
+
+        // Cleanup: stop observer, restore FC mirror, remove our ghost.
+        if (mirrorObserverRef.current) {
+            mirrorObserverRef.current.disconnect();
+            mirrorObserverRef.current = null;
+        }
+        if (mirrorElRef.current) {
+            mirrorElRef.current.style.visibility = '';
+            mirrorElRef.current = null;
+        }
+        if (ghostElRef.current) {
+            ghostElRef.current.remove();
+            ghostElRef.current = null;
+        }
+
         const js = info.jsEvent;
         const touch = (js.touches && js.touches[0]) || (js.changedTouches && js.changedTouches[0]);
         const x = js.clientX || (touch ? touch.clientX : 0);
