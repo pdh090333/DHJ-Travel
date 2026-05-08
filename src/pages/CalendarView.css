@@ -90,6 +90,10 @@
    the calendar. The wishlist's own drop-placeholder + sidebar outline
    give enough visual feedback there. Toggled from AdminView when the
    wishlist boundary is crossed. */
-body.hide-fc-mirror .fc-event-mirror {
+/* Mirror element is the source event cloned + `.fc-event-dragging`
+   added (FC source: ElementMirror.getMirrorEl). FC never adds
+   `.fc-event-mirror` in this build, so selectors targeting that class
+   silently miss. */
+body.hide-fc-mirror .fc-event-dragging {
     display: none !important;
 }

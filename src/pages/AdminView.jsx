@@ -33,7 +33,7 @@ export default function AdminView({ dbData, refreshDb, selectedTripId: initialTr
     // floating element in the calendar so we can pin it down.
     const hideFCMirror = () => {
         const els = document.querySelectorAll(
-            '.fc-event-mirror, [class*="fc-event-mirror"], .fc-helper'
+            '.fc-event-dragging, [class*="fc-event-mirror"], .fc-helper'
         );
         if (!els.length) {
             const seen = new Set();
