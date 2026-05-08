@@ -6,7 +6,7 @@ import ActivityModal from '../components/ActivityModal';
 import { saveActivity, deleteActivity, generateId } from '../db';
 import './CalendarView.css';
 
-const BUILD_TAG = 'wishlist-drag v6 — own-ghost + observer';
+const BUILD_TAG = 'wishlist-drag v7 — boundary on calendar exit, hide harness';
 
 export default function CalendarView({ dbData, selectedTripId, refreshDb, onDragOverWishlist, onUnschedule }) {
     // Build identifier — if the user does Ctrl+Shift+R and this doesn't
@@ -17,6 +17,14 @@ export default function CalendarView({ dbData, selectedTripId, refreshDb, onDrag
     const [selectedActivity, setSelectedActivity] = useState(null);
     const wishlistRectRef = useRef(null);
     const wasInsideWishlistRef = useRef(false);
+    // Calendar's bounding rect captured on dragStart. Once the cursor
+    // leaves this rect, FC's mirror positioning is unreliable (the
+    // captured node was `.fc-timegrid-event-harness`, an absolutely-
+    // positioned wrapper inside the grid — hiding inner children does
+    // nothing to the wrapper's position). So the new boundary is the
+    // calendar itself, not the wishlist.
+    const calendarRectRef = useRef(null);
+    const wasOutsideCalendarRef = useRef(false);
     // Refs for the new approach:
     //  - mirrorObserverRef:  MutationObserver that captures whatever node FC
     //                        inserts as the drag mirror, regardless of class.
@@ -145,6 +153,9 @@ export default function CalendarView({ dbData, selectedTripId, refreshDb, onDrag
         const sidebar = document.querySelector('.candidates-sidebar');
         if (sidebar) wishlistRectRef.current = sidebar.getBoundingClientRect();
         wasInsideWishlistRef.current = false;
+        const cal = document.querySelector('.calendar-container');
+        if (cal) calendarRectRef.current = cal.getBoundingClientRect();
+        wasOutsideCalendarRef.current = false;
 
         // Capture FC's mirror element via MutationObserver — selector-free.
         // FC inserts the mirror as a *new* DOM node sometime after this
@@ -197,34 +208,50 @@ export default function CalendarView({ dbData, selectedTripId, refreshDb, onDrag
         const x = js.clientX || (touch ? touch.clientX : 0);
         const y = js.clientY || (touch ? touch.clientY : 0);
         if (!x || !y) return;
-        if (!wishlistRectRef.current) {
-            const sb = document.querySelector('.candidates-sidebar');
-            if (sb) wishlistRectRef.current = sb.getBoundingClientRect();
-        }
-        if (!wishlistRectRef.current) return;
-        const r = wishlistRectRef.current;
-        const isInside = x >= r.left && x <= r.right && y >= r.top && y <= r.bottom;
 
-        if (isInside !== wasInsideWishlistRef.current) {
-            wasInsideWishlistRef.current = isInside;
-            onDragOverWishlist(isInside);
-            // Hide FC's mirror while over wishlist. Our own ghost stands
-            // in. When crossing back into the calendar, restore the FC
-            // mirror so its slot snapping works again.
+        // Calendar boundary — primary trigger for hiding FC's mirror and
+        // showing our own ghost. As soon as the cursor leaves the
+        // calendar, FC's harness positioning is no longer relatable to
+        // viewport coords.
+        if (!calendarRectRef.current) {
+            const cal = document.querySelector('.calendar-container');
+            if (cal) calendarRectRef.current = cal.getBoundingClientRect();
+        }
+        const calR = calendarRectRef.current;
+        const isOutsideCalendar = !!calR && (
+            x < calR.left || x > calR.right || y < calR.top || y > calR.bottom
+        );
+
+        if (isOutsideCalendar !== wasOutsideCalendarRef.current) {
+            wasOutsideCalendarRef.current = isOutsideCalendar;
             if (mirrorElRef.current) {
-                mirrorElRef.current.style.visibility = isInside ? 'hidden' : '';
+                mirrorElRef.current.style.visibility = isOutsideCalendar ? 'hidden' : '';
             }
         }
 
-        // Pin our own ghost to the cursor while over the wishlist.
         const ghost = ghostElRef.current;
         if (ghost) {
-            if (isInside) {
+            if (isOutsideCalendar) {
                 ghost.style.display = 'block';
                 ghost.style.left = (x + 12) + 'px';
                 ghost.style.top = (y + 12) + 'px';
             } else if (ghost.style.display !== 'none') {
                 ghost.style.display = 'none';
+            }
+        }
+
+        // Wishlist boundary — separate concern: drives the sidebar's
+        // outline + drop placeholder via setSidebarDragOver.
+        if (!wishlistRectRef.current) {
+            const sb = document.querySelector('.candidates-sidebar');
+            if (sb) wishlistRectRef.current = sb.getBoundingClientRect();
+        }
+        if (wishlistRectRef.current) {
+            const wr = wishlistRectRef.current;
+            const isInsideWishlist = x >= wr.left && x <= wr.right && y >= wr.top && y <= wr.bottom;
+            if (isInsideWishlist !== wasInsideWishlistRef.current) {
+                wasInsideWishlistRef.current = isInsideWishlist;
+                onDragOverWishlist(isInsideWishlist);
             }
         }
     };
@@ -258,6 +285,8 @@ export default function CalendarView({ dbData, selectedTripId, refreshDb, onDrag
             }
         }
         wishlistRectRef.current = null;
+        calendarRectRef.current = null;
+        wasOutsideCalendarRef.current = false;
     };
 
     return (
