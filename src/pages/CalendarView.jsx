@@ -6,7 +6,7 @@ import ActivityModal from '../components/ActivityModal';
 import { saveActivity, deleteActivity, generateId } from '../db';
 import './CalendarView.css';
 
-const BUILD_TAG = 'wishlist-drag v9 — last-pointer fallback + remove-on-drop';
+const BUILD_TAG = 'wishlist-drag v10 — window mouseup drop (no FC dragStop dep)';
 
 export default function CalendarView({ dbData, selectedTripId, refreshDb, onDragOverWishlist, onUnschedule }) {
     // Build identifier — if the user does Ctrl+Shift+R and this doesn't
@@ -42,10 +42,10 @@ export default function CalendarView({ dbData, selectedTripId, refreshDb, onDrag
     // so we have to subscribe to mousemove ourselves to get per-frame
     // cursor coordinates during the drag.
     const moveListenerRef = useRef(null);
+    const upListenerRef = useRef(null);
     // Last known cursor position from our own mousemove listener. Used as
-    // a fallback in handleEventDragStop because info.jsEvent's coords are
-    // unreliable on mouseup (sometimes 0/null, sometimes the snap-back
-    // position rather than the actual release point).
+    // a fallback because info.jsEvent's coords are unreliable on mouseup
+    // (sometimes 0/null, sometimes the snap-back position).
     const lastPointerRef = useRef({ x: 0, y: 0 });
     const activities = dbData.activities.filter(a => a.tripId === selectedTripId);
 
@@ -258,16 +258,49 @@ export default function CalendarView({ dbData, selectedTripId, refreshDb, onDrag
         window.addEventListener('mousemove', onMove, { passive: true });
         window.addEventListener('touchmove', onMove, { passive: true });
         moveListenerRef.current = onMove;
+
+        // Drop handler — window-level mouseup, registered in capture phase
+        // so FC can't swallow it via stopPropagation. Doesn't depend on
+        // FC's eventDragStop callback firing (it didn't, in v9 testing).
+        const eventRef = info.event;
+        const eventId = info.event.id;
+        const onUp = (e) => {
+            const t = e.changedTouches?.[0] || e.touches?.[0];
+            const lp = lastPointerRef.current;
+            const x = e.clientX || (t ? t.clientX : 0) || lp.x;
+            const y = e.clientY || (t ? t.clientY : 0) || lp.y;
+            const wr = wishlistRectRef.current;
+            const droppedOnWishlist = !!wr && x && y &&
+                x >= wr.left && x <= wr.right && y >= wr.top && y <= wr.bottom;
+            console.log('[wishlist] mouseup drop check', {
+                x, y, droppedOnWishlist, hasWishlistRect: !!wr,
+            });
+
+            if (droppedOnWishlist) {
+                try { eventRef.remove(); } catch (_) { /* ignore */ }
+                onUnschedule(selectedTripId, eventId);
+            }
+
+            // Tear down everything ourselves — don't rely on FC's
+            // eventDragStop. Idempotent with handleEventDragStop's cleanup.
+            cleanupDrag();
+        };
+        window.addEventListener('mouseup', onUp, true);
+        window.addEventListener('touchend', onUp, true);
+        upListenerRef.current = onUp;
     };
 
-    const handleEventDragStop = (info) => {
+    const cleanupDrag = () => {
         onDragOverWishlist(false);
-
-        // Cleanup: stop move listener, observer, restore FC mirror, remove ghost.
         if (moveListenerRef.current) {
             window.removeEventListener('mousemove', moveListenerRef.current);
             window.removeEventListener('touchmove', moveListenerRef.current);
             moveListenerRef.current = null;
+        }
+        if (upListenerRef.current) {
+            window.removeEventListener('mouseup', upListenerRef.current, true);
+            window.removeEventListener('touchend', upListenerRef.current, true);
+            upListenerRef.current = null;
         }
         if (mirrorObserverRef.current) {
             mirrorObserverRef.current.disconnect();
@@ -281,32 +314,20 @@ export default function CalendarView({ dbData, selectedTripId, refreshDb, onDrag
             ghostElRef.current.remove();
             ghostElRef.current = null;
         }
-
-        // Resolve the release coordinates. info.jsEvent's coords are
-        // unreliable at mouseup, so fall back to the last position our
-        // own mousemove listener saw.
-        const js = info.jsEvent;
-        const touch = (js?.touches && js.touches[0]) || (js?.changedTouches && js.changedTouches[0]);
-        const lp = lastPointerRef.current;
-        const x = js?.clientX || (touch ? touch.clientX : 0) || lp.x;
-        const y = js?.clientY || (touch ? touch.clientY : 0) || lp.y;
-        const wr = wishlistRectRef.current;
-        const droppedOnWishlist = !!wr && x && y &&
-            x >= wr.left && x <= wr.right && y >= wr.top && y <= wr.bottom;
-        console.log('[wishlist] dragStop', { x, y, droppedOnWishlist, hasWishlistRect: !!wr });
-
-        if (droppedOnWishlist) {
-            // Remove the FC event immediately so its built-in `eventChange`
-            // doesn't race onUnschedule trying to save the event back at
-            // its snap-target slot.
-            try { info.event.remove(); } catch (_) { /* ignore */ }
-            onUnschedule(selectedTripId, info.event.id);
-        }
-
         wishlistRectRef.current = null;
         calendarRectRef.current = null;
         wasOutsideCalendarRef.current = false;
+        wasInsideWishlistRef.current = false;
         lastPointerRef.current = { x: 0, y: 0 };
+    };
+
+    const handleEventDragStop = () => {
+        // Drop logic is handled by the window mouseup listener registered
+        // in handleEventDragStart (FC's dragStop wasn't firing reliably).
+        // This is just a belt-and-suspenders cleanup if dragStop *does*
+        // fire. cleanupDrag is idempotent.
+        console.log('[wishlist] FC dragStop fired (informational)');
+        cleanupDrag();
     };
 
     return (
