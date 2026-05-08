@@ -6,7 +6,7 @@ import ActivityModal from '../components/ActivityModal';
 import { saveActivity, deleteActivity, generateId } from '../db';
 import './CalendarView.css';
 
-const BUILD_TAG = 'wishlist-drag v8 — window mousemove (eventDrag was a no-op)';
+const BUILD_TAG = 'wishlist-drag v9 — last-pointer fallback + remove-on-drop';
 
 export default function CalendarView({ dbData, selectedTripId, refreshDb, onDragOverWishlist, onUnschedule }) {
     // Build identifier — if the user does Ctrl+Shift+R and this doesn't
@@ -42,6 +42,11 @@ export default function CalendarView({ dbData, selectedTripId, refreshDb, onDrag
     // so we have to subscribe to mousemove ourselves to get per-frame
     // cursor coordinates during the drag.
     const moveListenerRef = useRef(null);
+    // Last known cursor position from our own mousemove listener. Used as
+    // a fallback in handleEventDragStop because info.jsEvent's coords are
+    // unreliable on mouseup (sometimes 0/null, sometimes the snap-back
+    // position rather than the actual release point).
+    const lastPointerRef = useRef({ x: 0, y: 0 });
     const activities = dbData.activities.filter(a => a.tripId === selectedTripId);
 
     const firstDate = activities
@@ -216,6 +221,7 @@ export default function CalendarView({ dbData, selectedTripId, refreshDb, onDrag
             const x = e.clientX || (t ? t.clientX : 0);
             const y = e.clientY || (t ? t.clientY : 0);
             if (!x || !y) return;
+            lastPointerRef.current = { x, y };
 
             const calR = calendarRectRef.current;
             const isOutsideCalendar = !!calR && (
@@ -276,20 +282,31 @@ export default function CalendarView({ dbData, selectedTripId, refreshDb, onDrag
             ghostElRef.current = null;
         }
 
+        // Resolve the release coordinates. info.jsEvent's coords are
+        // unreliable at mouseup, so fall back to the last position our
+        // own mousemove listener saw.
         const js = info.jsEvent;
-        const touch = (js.touches && js.touches[0]) || (js.changedTouches && js.changedTouches[0]);
-        const x = js.clientX || (touch ? touch.clientX : 0);
-        const y = js.clientY || (touch ? touch.clientY : 0);
-        if (wishlistRectRef.current && x && y) {
-            const r = wishlistRectRef.current;
-            if (x >= r.left && x <= r.right && y >= r.top && y <= r.bottom) {
-                // IMPORTANT: Use the optimistic handler from App.jsx
-                onUnschedule(selectedTripId, info.event.id);
-            }
+        const touch = (js?.touches && js.touches[0]) || (js?.changedTouches && js.changedTouches[0]);
+        const lp = lastPointerRef.current;
+        const x = js?.clientX || (touch ? touch.clientX : 0) || lp.x;
+        const y = js?.clientY || (touch ? touch.clientY : 0) || lp.y;
+        const wr = wishlistRectRef.current;
+        const droppedOnWishlist = !!wr && x && y &&
+            x >= wr.left && x <= wr.right && y >= wr.top && y <= wr.bottom;
+        console.log('[wishlist] dragStop', { x, y, droppedOnWishlist, hasWishlistRect: !!wr });
+
+        if (droppedOnWishlist) {
+            // Remove the FC event immediately so its built-in `eventChange`
+            // doesn't race onUnschedule trying to save the event back at
+            // its snap-target slot.
+            try { info.event.remove(); } catch (_) { /* ignore */ }
+            onUnschedule(selectedTripId, info.event.id);
         }
+
         wishlistRectRef.current = null;
         calendarRectRef.current = null;
         wasOutsideCalendarRef.current = false;
+        lastPointerRef.current = { x: 0, y: 0 };
     };
 
     return (
