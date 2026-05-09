@@ -6,7 +6,7 @@ import ActivityModal from '../components/ActivityModal';
 import { saveActivity, deleteActivity, generateId } from '../db';
 import './CalendarView.css';
 
-const BUILD_TAG = 'wishlist-drag v11 — kill mirror DOM on drop, no snap-back flash';
+const BUILD_TAG = 'wishlist-drag v12 — stop FC from seeing the mouseup at all';
 
 export default function CalendarView({ dbData, selectedTripId, refreshDb, onDragOverWishlist, onUnschedule }) {
     // Build identifier — if the user does Ctrl+Shift+R and this doesn't
@@ -277,16 +277,21 @@ export default function CalendarView({ dbData, selectedTripId, refreshDb, onDrag
             });
 
             if (droppedOnWishlist) {
+                // Stop FC from ever seeing this mouseup. We're on the
+                // window in capture phase so we run before any of FC's
+                // listeners; stopImmediatePropagation prevents FC's own
+                // dragStop pipeline from running. That pipeline was
+                // converting the (out-of-grid) cursor coords to a slot,
+                // failing, and falling back to grid-origin (0,0), which
+                // briefly relocated the source event to the calendar's
+                // top-left before our setDbData removed it.
+                e.preventDefault();
+                e.stopPropagation();
+                e.stopImmediatePropagation();
                 try { eventRef.remove(); } catch (_) { /* ignore */ }
                 onUnschedule(selectedTripId, eventId);
             }
 
-            // Tear down everything ourselves — don't rely on FC's
-            // eventDragStop. Idempotent with handleEventDragStop's cleanup.
-            // Pass droppedOnWishlist so we kill the mirror DOM directly
-            // instead of restoring its visibility (otherwise FC animates
-            // it back to the grid origin for one frame — the "top-left
-            // flash" the user reported).
             cleanupDrag(droppedOnWishlist);
         };
         window.addEventListener('mouseup', onUp, true);
