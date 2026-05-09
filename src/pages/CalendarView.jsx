@@ -6,7 +6,7 @@ import ActivityModal from '../components/ActivityModal';
 import { saveActivity, deleteActivity, generateId } from '../db';
 import './CalendarView.css';
 
-const BUILD_TAG = 'wishlist-drag v10 — window mouseup drop (no FC dragStop dep)';
+const BUILD_TAG = 'wishlist-drag v11 — kill mirror DOM on drop, no snap-back flash';
 
 export default function CalendarView({ dbData, selectedTripId, refreshDb, onDragOverWishlist, onUnschedule }) {
     // Build identifier — if the user does Ctrl+Shift+R and this doesn't
@@ -283,14 +283,18 @@ export default function CalendarView({ dbData, selectedTripId, refreshDb, onDrag
 
             // Tear down everything ourselves — don't rely on FC's
             // eventDragStop. Idempotent with handleEventDragStop's cleanup.
-            cleanupDrag();
+            // Pass droppedOnWishlist so we kill the mirror DOM directly
+            // instead of restoring its visibility (otherwise FC animates
+            // it back to the grid origin for one frame — the "top-left
+            // flash" the user reported).
+            cleanupDrag(droppedOnWishlist);
         };
         window.addEventListener('mouseup', onUp, true);
         window.addEventListener('touchend', onUp, true);
         upListenerRef.current = onUp;
     };
 
-    const cleanupDrag = () => {
+    const cleanupDrag = (droppedOnWishlist = false) => {
         onDragOverWishlist(false);
         if (moveListenerRef.current) {
             window.removeEventListener('mousemove', moveListenerRef.current);
@@ -307,7 +311,15 @@ export default function CalendarView({ dbData, selectedTripId, refreshDb, onDrag
             mirrorObserverRef.current = null;
         }
         if (mirrorElRef.current) {
-            mirrorElRef.current.style.visibility = '';
+            if (droppedOnWishlist) {
+                // Yank the mirror DOM out before FC can animate it back
+                // to the grid origin. event.remove() doesn't cover this —
+                // the mirror is FC's drag clone, separate from the event
+                // it's mirroring.
+                try { mirrorElRef.current.remove(); } catch (_) { /* ignore */ }
+            } else {
+                mirrorElRef.current.style.visibility = '';
+            }
             mirrorElRef.current = null;
         }
         if (ghostElRef.current) {
