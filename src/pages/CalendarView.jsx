@@ -6,7 +6,7 @@ import ActivityModal from '../components/ActivityModal';
 import { saveActivity, deleteActivity, generateId } from '../db';
 import './CalendarView.css';
 
-const BUILD_TAG = 'wishlist-drag v15 — hide-only, never .remove() (FC needs the DOM)';
+const BUILD_TAG = 'wishlist-drag v16 — let FC see mouseup; display:none alone kills the flash';
 
 export default function CalendarView({ dbData, selectedTripId, refreshDb, onDragOverWishlist, onUnschedule }) {
     // Build identifier — if the user does Ctrl+Shift+R and this doesn't
@@ -285,16 +285,16 @@ export default function CalendarView({ dbData, selectedTripId, refreshDb, onDrag
             });
 
             if (droppedOnWishlist) {
-                e.preventDefault();
-                e.stopPropagation();
-                e.stopImmediatePropagation();
+                // Don't stopPropagation / stopImmediatePropagation here.
+                // FC's mouseup handler must run for it to clean up its
+                // internal "is-dragging" state — without that, the next
+                // drag attempt is silently ignored. We let FC's
+                // dragStop pipeline run and just hide the resulting
+                // mirror animation with display:none (which suppresses
+                // any paint, snap-back included).
                 try { eventRef.remove(); } catch (_) { /* ignore */ }
                 onUnschedule(selectedTripId, eventId);
 
-                // Hide (not remove) every FC drag clone for ~250ms so
-                // the snap-back animation never paints. Removing the DOM
-                // here breaks FC's internal cleanup and the next drag
-                // can't start.
                 const sweepHide = () => {
                     document.querySelectorAll('.fc-event-dragging').forEach(el => {
                         el.style.display = 'none';
