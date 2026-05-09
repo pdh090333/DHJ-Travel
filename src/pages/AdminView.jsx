@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { saveActivities, exportToCSV, parseCSV, generateId, saveTrip, deleteTrip, saveCandidate, deleteCandidate } from '../db';
+import React, { useState, useEffect, useRef } from 'react';
+import { replaceTripActivities, exportToCSV, parseCSV, generateId, saveTrip, deleteTrip, saveCandidate, deleteCandidate } from '../db';
 import { Download, Upload, Plus, Trash2, Save, Trash, MapPin, Link as LinkIcon, ExternalLink } from 'lucide-react';
 import { Draggable } from '@fullcalendar/interaction';
 import CalendarView from './CalendarView';
@@ -12,7 +12,60 @@ export default function AdminView({ dbData, refreshDb, selectedTripId: initialTr
     );
 
     const [newCandidate, setNewCandidate] = useState({ title: '', url: '', notes: '', imageUrl: '' });
-    const [isDraggingOverWishlist, setIsDraggingOverWishlist] = useState(false);
+
+    // Was useState — but toggling state on every wishlist boundary crossing
+    // forced an AdminView+CalendarView re-render mid-drag, which rebuilt
+    // FullCalendar's events array and snapped the drag mirror away from
+    // the cursor. Direct DOM toggling sidesteps React entirely.
+    const sidebarRef = useRef(null);
+    const fcMirrorCleanupRef = useRef([]);
+
+    // FullCalendar's drag mirror is positioned in the calendar grid's
+    // local coordinate frame. Once the cursor leaves the calendar and
+    // enters the wishlist the mirror lands ~500px off-cursor and can't
+    // be coaxed back. Hide it while over the wishlist — the sidebar's
+    // own drop-placeholder + outline give enough feedback, and the drop
+    // position is read from the cursor in handleEventDragStop anyway.
+    //
+    // We hide via inline style (stronger than any FC inline positioning)
+    // and cast a wide net on selectors because FC versions name the
+    // mirror element differently. If our selector misses, we log every
+    // floating element in the calendar so we can pin it down.
+    const hideFCMirror = () => {
+        const els = document.querySelectorAll(
+            '.fc-event-dragging, [class*="fc-event-mirror"], .fc-helper'
+        );
+        if (!els.length) {
+            const seen = new Set();
+            document.querySelectorAll('.fc *').forEach(el => {
+                const cs = window.getComputedStyle(el);
+                if (cs.position === 'absolute' || cs.position === 'fixed') {
+                    seen.add(el.className || el.tagName);
+                }
+            });
+            console.warn('[wishlist] FC mirror not matched. Floating .fc descendants:', [...seen]);
+            return;
+        }
+        els.forEach(el => {
+            if (el.style.display === 'none') return;
+            fcMirrorCleanupRef.current.push([el, el.style.display]);
+            el.style.display = 'none';
+        });
+    };
+
+    const showFCMirror = () => {
+        fcMirrorCleanupRef.current.forEach(([el, prev]) => {
+            el.style.display = prev || '';
+        });
+        fcMirrorCleanupRef.current = [];
+    };
+
+    const setSidebarDragOver = (over) => {
+        sidebarRef.current?.classList.toggle('is-dragging-over', !!over);
+        document.body.classList.toggle('hide-fc-mirror', !!over);
+        if (over) hideFCMirror();
+        else showFCMirror();
+    };
 
     // Initialize Draggable for candidates
     useEffect(() => {
@@ -32,6 +85,34 @@ export default function AdminView({ dbData, refreshDb, selectedTripId: initialTr
             return () => draggable.destroy();
         }
     }, [dbData.candidates]); // Re-init when list changes
+
+    // Track when user is dragging FROM wishlist (vs INTO it). The hover-lift
+    // on .candidate-item triggers a paint storm as the drag mirror passes
+    // over each sibling. Killing the lift while a candidate is being
+    // dragged restores 60fps inside the wishlist.
+    useEffect(() => {
+        const sidebar = sidebarRef.current;
+        if (!sidebar) return;
+        let active = false;
+        const onDown = (e) => {
+            if (!e.target.closest('.candidate-item-draggable')) return;
+            active = true;
+            sidebar.classList.add('is-dragging-from-wishlist');
+        };
+        const onUp = () => {
+            if (!active) return;
+            active = false;
+            sidebar.classList.remove('is-dragging-from-wishlist');
+        };
+        sidebar.addEventListener('pointerdown', onDown);
+        window.addEventListener('pointerup', onUp);
+        window.addEventListener('pointercancel', onUp);
+        return () => {
+            sidebar.removeEventListener('pointerdown', onDown);
+            window.removeEventListener('pointerup', onUp);
+            window.removeEventListener('pointercancel', onUp);
+        };
+    }, []);
 
     const extractDirectImageUrl = (url) => {
         if (!url) return '';
@@ -80,12 +161,10 @@ export default function AdminView({ dbData, refreshDb, selectedTripId: initialTr
         reader.onload = async (evt) => {
             try {
                 const parsed = parseCSV(evt.target.result, selectedTripId);
-                // The newly parsed CSV replaces only the activities for the current trip.
-                const otherTripActivities = dbData.activities.filter(a => a.tripId !== selectedTripId);
-                await saveActivities(selectedTripId, [...otherTripActivities, ...parsed]);
+                await replaceTripActivities(selectedTripId, parsed);
                 await refreshDb();
                 alert('일정을 성공적으로 불러왔습니다!');
-            } catch (err) {
+            } catch {
                 alert('CSV 불러오기 실패: 올바른 형식인지 확인하세요.');
             }
         };
@@ -175,7 +254,7 @@ export default function AdminView({ dbData, refreshDb, selectedTripId: initialTr
                             dbData={dbData}
                             selectedTripId={selectedTripId}
                             refreshDb={refreshDb}
-                            onDragOverWishlist={setIsDraggingOverWishlist}
+                            onDragOverWishlist={setSidebarDragOver}
                             onUnschedule={onUnschedule}
                         />
                     ) : (
@@ -185,7 +264,7 @@ export default function AdminView({ dbData, refreshDb, selectedTripId: initialTr
                     )}
                 </div>
 
-                <div className={`candidates-sidebar ${isDraggingOverWishlist ? 'is-dragging-over' : ''}`}>
+                <div ref={sidebarRef} className="candidates-sidebar">
                     <div className="sidebar-header">
                         <MapPin size={18} />
                         <h3>가고 싶은 곳 (Wishlist)</h3>
@@ -221,12 +300,14 @@ export default function AdminView({ dbData, refreshDb, selectedTripId: initialTr
                     </div>
 
                     <div id="external-candidates" className="candidates-list">
-                        {isDraggingOverWishlist && (
-                            <div className="drop-placeholder">
-                                <Plus size={24} />
-                                <span>이곳에 놓으면 후보지로 이동합니다</span>
-                            </div>
-                        )}
+                        {/* Always render — CSS visibility is toggled via the
+                            sidebar's `is-dragging-over` class so we don't
+                            mount/unmount during drag (would force a React
+                            render and shake the FullCalendar drag mirror). */}
+                        <div className="drop-placeholder">
+                            <Plus size={24} />
+                            <span>이곳에 놓으면 후보지로 이동합니다</span>
+                        </div>
                         <p className="hint">💡 아래 항목을 달력으로 끌어다 놓으세요!</p>
                         {currentCandidates.map(c => (
                             <div

@@ -3,10 +3,11 @@
 // Schema:
 // Trip = { id, title, startDate, endDate }
 // Activity = { id, tripId, date, startTime, endTime, title, departure, arrival, departureUrl, arrivalUrl, notes }
+// Candidate = { id, tripId, title, url, notes, imageUrl }
 
 import {
     collection, getDocs, doc, setDoc, deleteDoc,
-    writeBatch, getDoc
+    writeBatch, query, where
 } from 'firebase/firestore';
 import { db } from './firebase';
 
@@ -35,61 +36,56 @@ export const loadDB = async () => {
     return { trips, activities, candidates };
 };
 
-// ─── Save activities for a specific trip ─────────────────
-export const saveActivities = async (tripId, activities) => {
-    if (!tripId) throw new Error("tripId is required to save activities");
+// ─── Activity: single-doc ops (preferred) ──────────────
+export const saveActivity = async (activity) => {
+    if (!activity?.id) throw new Error('saveActivity: id required');
+    if (!activity?.tripId) throw new Error('saveActivity: tripId required');
+    await setDoc(doc(db, ACTIVITIES_COL, activity.id), activity);
+};
 
-    // 1. Delete existing activities FOR THIS TRIP ONLY
-    const q = collection(db, ACTIVITIES_COL);
+export const deleteActivity = async (activityId) => {
+    await deleteDoc(doc(db, ACTIVITIES_COL, activityId));
+};
+
+// Bulk replace all activities for a single trip. Use only for true bulk
+// operations like CSV import — never for editing a single activity.
+export const replaceTripActivities = async (tripId, activities) => {
+    if (!tripId) throw new Error('replaceTripActivities: tripId required');
+
+    const q = query(collection(db, ACTIVITIES_COL), where('tripId', '==', tripId));
     const snapshot = await getDocs(q);
     const batch = writeBatch(db);
 
-    snapshot.docs.forEach(d => {
-        if (d.data().tripId === tripId) {
-            batch.delete(d.ref);
-        }
-    });
+    snapshot.docs.forEach(d => batch.delete(d.ref));
 
-    // 2. Write new activities
     activities.forEach(act => {
         const ref = doc(db, ACTIVITIES_COL, act.id);
-        batch.set(ref, { ...act, tripId }); // Ensure tripId is set
+        batch.set(ref, { ...act, tripId });
     });
+
     await batch.commit();
 };
 
-// ─── Save a trip ────────────────────────────────────────
+// ─── Trip ──────────────────────────────────────────────
 export const saveTrip = async (trip) => {
     await setDoc(doc(db, TRIPS_COL, trip.id), trip);
 };
 
-// ─── Delete a trip and its activities ──────────────────
 export const deleteTrip = async (tripId) => {
+    const [actsSnap, candsSnap] = await Promise.all([
+        getDocs(query(collection(db, ACTIVITIES_COL), where('tripId', '==', tripId))),
+        getDocs(query(collection(db, CANDIDATES_COL), where('tripId', '==', tripId)))
+    ]);
+
     const batch = writeBatch(db);
-
-    // 1. Delete trip doc
     batch.delete(doc(db, TRIPS_COL, tripId));
-
-    // 2. Delete associated activities
-    const activitiesSnap = await getDocs(collection(db, ACTIVITIES_COL));
-    activitiesSnap.docs.forEach(d => {
-        if (d.data().tripId === tripId) {
-            batch.delete(d.ref);
-        }
-    });
-
-    // 3. Delete associated candidates
-    const candidatesSnap = await getDocs(collection(db, CANDIDATES_COL));
-    candidatesSnap.docs.forEach(d => {
-        if (d.data().tripId === tripId) {
-            batch.delete(d.ref);
-        }
-    });
+    actsSnap.docs.forEach(d => batch.delete(d.ref));
+    candsSnap.docs.forEach(d => batch.delete(d.ref));
 
     await batch.commit();
 };
 
-// ─── Candidates Management ──────────────────────────
+// ─── Candidates ────────────────────────────────────────
 export const saveCandidate = async (candidate) => {
     await setDoc(doc(db, CANDIDATES_COL, candidate.id), candidate);
 };
@@ -98,7 +94,7 @@ export const deleteCandidate = async (candidateId) => {
     await deleteDoc(doc(db, CANDIDATES_COL, candidateId));
 };
 
-// ─── Ensure at least one default trip exists ───────────
+// ─── Bootstrap ─────────────────────────────────────────
 export const ensureDefaultTrip = async () => {
     const snap = await getDocs(collection(db, TRIPS_COL));
     if (snap.empty) {
@@ -115,7 +111,7 @@ export const ensureDefaultTrip = async () => {
     return snap.docs[0].id;
 };
 
-// ─── Export to CSV ────────────────────────────────────
+// ─── CSV Export ────────────────────────────────────────
 export const exportToCSV = (activities) => {
     const headers = ['date', 'startTime', 'endTime', 'title', 'departure', 'arrival', 'departureUrl', 'arrivalUrl', 'notes'];
     const rows = activities.map(act => [
@@ -143,7 +139,7 @@ export const exportToCSV = (activities) => {
     document.body.removeChild(link);
 };
 
-// ─── Import from CSV ─────────────────────────────────
+// ─── CSV Import ────────────────────────────────────────
 export const parseCSV = (csvText, tripId) => {
     const lines = csvText.split('\n').filter(line => line.trim() !== '');
     if (lines.length === 0) return [];

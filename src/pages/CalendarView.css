@@ -21,7 +21,10 @@
     border: 1px solid var(--border-color);
     box-shadow: var(--shadow-md);
     padding: 1rem;
-    overflow: hidden;
+    /* overflow: visible so the FullCalendar event ghost isn't clipped
+       when dragging out toward the wishlist sidebar */
+    overflow: visible;
+    min-height: 0;
 }
 
 /* FullCalendar Customizations to match theme */
@@ -79,4 +82,18 @@
     pointer-events: none !important;
     opacity: 0.8 !important;
     z-index: 9999 !important;
+}
+
+/* Hide FullCalendar's drag mirror while the cursor is over the wishlist.
+   The mirror's left/top is computed in the calendar grid's local frame
+   and lands hundreds of px off-cursor once the pointer crosses out of
+   the calendar. The wishlist's own drop-placeholder + sidebar outline
+   give enough visual feedback there. Toggled from AdminView when the
+   wishlist boundary is crossed. */
+/* Mirror element is the source event cloned + `.fc-event-dragging`
+   added (FC source: ElementMirror.getMirrorEl). FC never adds
+   `.fc-event-mirror` in this build, so selectors targeting that class
+   silently miss. */
+body.hide-fc-mirror .fc-event-dragging {
+    display: none !important;
 }

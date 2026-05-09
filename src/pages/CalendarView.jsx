@@ -1,14 +1,24 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import FullCalendar from '@fullcalendar/react';
 import timeGridPlugin from '@fullcalendar/timegrid';
 import interactionPlugin from '@fullcalendar/interaction';
 import ActivityModal from '../components/ActivityModal';
-import { saveActivities, generateId } from '../db';
+import { saveActivity, deleteActivity, generateId } from '../db';
 import './CalendarView.css';
 
+const BUILD_TAG = 'wishlist-drag v18 — hands off the mirror, ghost-only feedback';
+
 export default function CalendarView({ dbData, selectedTripId, refreshDb, onDragOverWishlist, onUnschedule }) {
+    useEffect(() => { console.log('[Travel]', BUILD_TAG); }, []);
+
     const [selectedActivity, setSelectedActivity] = useState(null);
     const wishlistRectRef = useRef(null);
+    const wasInsideWishlistRef = useRef(false);
+    const ghostElRef = useRef(null);
+    const moveListenerRef = useRef(null);
+    const upListenerRef = useRef(null);
+    const lastPointerRef = useRef({ x: 0, y: 0 });
+
     const activities = dbData.activities.filter(a => a.tripId === selectedTripId);
 
     const firstDate = activities
@@ -39,20 +49,23 @@ export default function CalendarView({ dbData, selectedTripId, refreshDb, onDrag
 
     const handleEventChange = async (changeInfo) => {
         const { event } = changeInfo;
+        const original = activities.find(a => a.id === event.id);
+        if (!original) return;
         const newStart = event.start;
         const newEnd = event.end || new Date(newStart.getTime() + 60 * 60 * 1000);
         const offset = newStart.getTimezoneOffset() * 60000;
         const localStart = new Date(newStart.getTime() - offset);
         const localEnd = new Date(newEnd.getTime() - offset);
-        const updatedActivities = activities.map(a =>
-            a.id === event.id
-                ? { ...a, date: localStart.toISOString().split('T')[0], startTime: localStart.toISOString().slice(11, 16), endTime: localEnd.toISOString().slice(11, 16) }
-                : a
-        );
+        const updated = {
+            ...original,
+            date: localStart.toISOString().split('T')[0],
+            startTime: localStart.toISOString().slice(11, 16),
+            endTime: localEnd.toISOString().slice(11, 16)
+        };
         try {
-            await saveActivities(selectedTripId, updatedActivities);
+            await saveActivity(updated);
             await refreshDb();
-        } catch (e) {
+        } catch {
             alert('저장 실패');
             changeInfo.revert();
         }
@@ -77,23 +90,23 @@ export default function CalendarView({ dbData, selectedTripId, refreshDb, onDrag
     };
 
     const handleSaveModal = async (editedActivity) => {
-        const updated = editedActivity.id.startsWith('new_')
-            ? [...activities, { ...editedActivity, id: editedActivity.id.replace('new_', '') }]
-            : activities.map(a => a.id === editedActivity.id ? editedActivity : a);
+        const toSave = editedActivity.id.startsWith('new_')
+            ? { ...editedActivity, id: editedActivity.id.replace('new_', ''), tripId: selectedTripId }
+            : { ...editedActivity, tripId: selectedTripId };
         try {
-            await saveActivities(selectedTripId, updated);
+            await saveActivity(toSave);
             await refreshDb();
             setSelectedActivity(null);
-        } catch (e) { alert('실패'); }
+        } catch { alert('실패'); }
     };
 
     const handleDeleteModal = async (id) => {
         if (!confirm('삭제?')) return;
         try {
-            await saveActivities(selectedTripId, activities.filter(a => a.id !== id));
+            await deleteActivity(id);
             await refreshDb();
             setSelectedActivity(null);
-        } catch (e) { alert('실패'); }
+        } catch { alert('실패'); }
     };
 
     const handleEventReceive = async (info) => {
@@ -110,47 +123,144 @@ export default function CalendarView({ dbData, selectedTripId, refreshDb, onDrag
         };
         try {
             const { deleteCandidate } = await import('../db');
-            await saveActivities(selectedTripId, [...activities, newAct]);
-            await deleteCandidate(candidateData.id);
+            await Promise.all([
+                saveActivity(newAct),
+                deleteCandidate(candidateData.id)
+            ]);
             await refreshDb();
-        } catch (e) { info.event.remove(); }
+        } catch { info.event.remove(); }
     };
 
-    const handleEventDragStart = () => {
+    // ─── Wishlist drag-out ────────────────────────────────────
+    //
+    // Lessons from v8–v17: every attempt to manipulate FC's mirror DOM
+    // (capture via MutationObserver, hide via inline style, .remove())
+    // ended up either grabbing a source event by mistake or breaking
+    // FC's internal cleanup so the next drag wouldn't start. v18 keeps
+    // hands off FC's mirror entirely. We add three things and that's it:
+    //
+    //  1. A cursor-following ghost (<div> in <body>, position:fixed) that
+    //     gives unambiguous visual feedback at the actual cursor — FC's
+    //     own mirror sometimes lands at the snap-target slot rather than
+    //     the cursor, which is confusing in a maximized window. The ghost
+    //     is the source of truth; users look at the ghost.
+    //
+    //  2. A wishlist-rect boundary check on every mousemove → toggles
+    //     the sidebar's `is-dragging-over` class for outline + drop
+    //     placeholder.
+    //
+    //  3. A window-level mouseup that, if the cursor is over the
+    //     wishlist, calls event.remove() + onUnschedule(). FC's
+    //     `eventDragStop` is unreliable in this flow so we don't rely
+    //     on it.
+    //
+    // We let FC do whatever it wants with its own mirror DOM. There may
+    // be a brief snap-back flash when releasing — accept it. The
+    // alternative (touching the mirror) keeps breaking subsequent drags.
+
+    const handleEventDragStart = (info) => {
         const sidebar = document.querySelector('.candidates-sidebar');
         if (sidebar) wishlistRectRef.current = sidebar.getBoundingClientRect();
-    };
+        wasInsideWishlistRef.current = false;
 
-    const handleEventDrag = (info) => {
-        const js = info.jsEvent;
-        const touch = (js.touches && js.touches[0]) || (js.changedTouches && js.changedTouches[0]);
-        const x = js.clientX || (touch ? touch.clientX : 0);
-        const y = js.clientY || (touch ? touch.clientY : 0);
-        if (!x || !y) return;
-        if (!wishlistRectRef.current) {
-            const sb = document.querySelector('.candidates-sidebar');
-            if (sb) wishlistRectRef.current = sb.getBoundingClientRect();
-        }
-        if (wishlistRectRef.current) {
-            const r = wishlistRectRef.current;
-            onDragOverWishlist(x >= r.left && x <= r.right && y >= r.top && y <= r.bottom);
-        }
-    };
+        // Cursor-following ghost. Position with the start cursor coords
+        // so it appears immediately, no first-frame flash.
+        const ghost = document.createElement('div');
+        const sx = info?.jsEvent?.clientX || 0;
+        const sy = info?.jsEvent?.clientY || 0;
+        ghost.style.cssText = [
+            'position:fixed', 'z-index:99998', 'pointer-events:none',
+            'background:var(--primary,#4f46e5)', 'color:white',
+            'padding:6px 12px', 'border-radius:6px',
+            'font-size:0.85rem', 'font-weight:600', 'opacity:0.92',
+            'box-shadow:0 4px 12px rgba(0,0,0,0.25)',
+            'white-space:nowrap',
+            `left:${sx + 12}px`, `top:${sy + 12}px`,
+        ].join(';');
+        ghost.textContent = info?.event?.title || '';
+        document.body.appendChild(ghost);
+        ghostElRef.current = ghost;
+        if (sx && sy) lastPointerRef.current = { x: sx, y: sy };
 
-    const handleEventDragStop = (info) => {
-        onDragOverWishlist(false);
-        const js = info.jsEvent;
-        const touch = (js.touches && js.touches[0]) || (js.changedTouches && js.changedTouches[0]);
-        const x = js.clientX || (touch ? touch.clientX : 0);
-        const y = js.clientY || (touch ? touch.clientY : 0);
-        if (wishlistRectRef.current && x && y) {
-            const r = wishlistRectRef.current;
-            if (x >= r.left && x <= r.right && y >= r.top && y <= r.bottom) {
-                // IMPORTANT: Use the optimistic handler from App.jsx
-                onUnschedule(selectedTripId, info.event.id);
+        // FC 6.x has no `eventDrag` callback option — has to be a
+        // window listener.
+        const onMove = (e) => {
+            const t = e.touches?.[0] || e.changedTouches?.[0];
+            const x = e.clientX || (t ? t.clientX : 0);
+            const y = e.clientY || (t ? t.clientY : 0);
+            if (!x || !y) return;
+            lastPointerRef.current = { x, y };
+
+            const g = ghostElRef.current;
+            if (g) {
+                g.style.left = (x + 12) + 'px';
+                g.style.top = (y + 12) + 'px';
             }
+
+            const wr = wishlistRectRef.current;
+            if (wr) {
+                const inside = x >= wr.left && x <= wr.right && y >= wr.top && y <= wr.bottom;
+                if (inside !== wasInsideWishlistRef.current) {
+                    wasInsideWishlistRef.current = inside;
+                    onDragOverWishlist(inside);
+                }
+            }
+        };
+        window.addEventListener('mousemove', onMove, { passive: true });
+        window.addEventListener('touchmove', onMove, { passive: true });
+        moveListenerRef.current = onMove;
+
+        // Drop handler — window mouseup. Capture phase so ordering
+        // doesn't matter. We do NOT stopPropagation: FC needs the
+        // mouseup to clean up its own state (otherwise next drag
+        // is silently ignored).
+        const eventRef = info.event;
+        const eventId = info.event.id;
+        const onUp = (e) => {
+            const t = e.changedTouches?.[0] || e.touches?.[0];
+            const lp = lastPointerRef.current;
+            const x = e.clientX || (t ? t.clientX : 0) || lp.x;
+            const y = e.clientY || (t ? t.clientY : 0) || lp.y;
+            const wr = wishlistRectRef.current;
+            const droppedOnWishlist = !!wr && x && y &&
+                x >= wr.left && x <= wr.right && y >= wr.top && y <= wr.bottom;
+            console.log('[wishlist] drop check', { x, y, droppedOnWishlist });
+
+            if (droppedOnWishlist) {
+                try { eventRef.remove(); } catch (_) { /* ignore */ }
+                onUnschedule(selectedTripId, eventId);
+            }
+            cleanupDrag();
+        };
+        window.addEventListener('mouseup', onUp, true);
+        window.addEventListener('touchend', onUp, true);
+        upListenerRef.current = onUp;
+    };
+
+    const cleanupDrag = () => {
+        onDragOverWishlist(false);
+        if (moveListenerRef.current) {
+            window.removeEventListener('mousemove', moveListenerRef.current);
+            window.removeEventListener('touchmove', moveListenerRef.current);
+            moveListenerRef.current = null;
+        }
+        if (upListenerRef.current) {
+            window.removeEventListener('mouseup', upListenerRef.current, true);
+            window.removeEventListener('touchend', upListenerRef.current, true);
+            upListenerRef.current = null;
+        }
+        if (ghostElRef.current) {
+            ghostElRef.current.remove();
+            ghostElRef.current = null;
         }
         wishlistRectRef.current = null;
+        wasInsideWishlistRef.current = false;
+        lastPointerRef.current = { x: 0, y: 0 };
+    };
+
+    const handleEventDragStop = () => {
+        // Belt-and-suspenders cleanup if FC's dragStop fires. Idempotent.
+        cleanupDrag();
     };
 
     return (
@@ -163,7 +273,7 @@ export default function CalendarView({ dbData, selectedTripId, refreshDb, onDrag
                     events={events} editable={true} selectable={true} selectMirror={true}
                     eventChange={handleEventChange} eventClick={handleEventClick} select={handleDateSelect}
                     eventReceive={handleEventReceive} eventDragStop={handleEventDragStop}
-                    eventDragStart={handleEventDragStart} eventDrag={handleEventDrag}
+                    eventDragStart={handleEventDragStart}
                     droppable={true} height="100%" locale="ko"
                     headerToolbar={{ left: 'prev,next today', center: 'title', right: 'timeGridWeek,timeGridDay' }}
                 />
