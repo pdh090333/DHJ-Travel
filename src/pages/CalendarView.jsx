@@ -6,7 +6,7 @@ import ActivityModal from '../components/ActivityModal';
 import { saveActivity, deleteActivity, generateId } from '../db';
 import './CalendarView.css';
 
-const BUILD_TAG = 'wishlist-drag v12 — stop FC from seeing the mouseup at all';
+const BUILD_TAG = 'wishlist-drag v13 — display:none + nuke all .fc-event-dragging';
 
 export default function CalendarView({ dbData, selectedTripId, refreshDb, onDragOverWishlist, onUnschedule }) {
     // Build identifier — if the user does Ctrl+Shift+R and this doesn't
@@ -230,7 +230,17 @@ export default function CalendarView({ dbData, selectedTripId, refreshDb, onDrag
             if (isOutsideCalendar !== wasOutsideCalendarRef.current) {
                 wasOutsideCalendarRef.current = isOutsideCalendar;
                 if (mirrorElRef.current) {
-                    mirrorElRef.current.style.visibility = isOutsideCalendar ? 'hidden' : '';
+                    // display:none, not visibility:hidden — visibility
+                    // can be overridden by FC children (.fc-event etc.).
+                    mirrorElRef.current.style.display = isOutsideCalendar ? 'none' : '';
+                }
+                // Also nuke any stray .fc-event-dragging clones — these
+                // are FC's actual mirror class. Source events never get
+                // this class, so this is safe.
+                if (isOutsideCalendar) {
+                    document.querySelectorAll('.fc-event-dragging').forEach(el => {
+                        el.style.display = 'none';
+                    });
                 }
             }
 
@@ -277,19 +287,25 @@ export default function CalendarView({ dbData, selectedTripId, refreshDb, onDrag
             });
 
             if (droppedOnWishlist) {
-                // Stop FC from ever seeing this mouseup. We're on the
-                // window in capture phase so we run before any of FC's
-                // listeners; stopImmediatePropagation prevents FC's own
-                // dragStop pipeline from running. That pipeline was
-                // converting the (out-of-grid) cursor coords to a slot,
-                // failing, and falling back to grid-origin (0,0), which
-                // briefly relocated the source event to the calendar's
-                // top-left before our setDbData removed it.
                 e.preventDefault();
                 e.stopPropagation();
                 e.stopImmediatePropagation();
                 try { eventRef.remove(); } catch (_) { /* ignore */ }
                 onUnschedule(selectedTripId, eventId);
+
+                // Nuclear sweep — remove every FC drag clone right now,
+                // and again on the next frame, and once more 100ms later.
+                // FC's dragStop pipeline runs after this and may create
+                // additional mirrors (snap-back animation source). Sweep
+                // them all. Source events don't have .fc-event-dragging
+                // so this won't touch persisted events.
+                const sweep = () => {
+                    document.querySelectorAll('.fc-event-dragging').forEach(el => el.remove());
+                };
+                sweep();
+                requestAnimationFrame(sweep);
+                setTimeout(sweep, 100);
+                setTimeout(sweep, 250);
             }
 
             cleanupDrag(droppedOnWishlist);
@@ -317,12 +333,11 @@ export default function CalendarView({ dbData, selectedTripId, refreshDb, onDrag
         }
         if (mirrorElRef.current) {
             if (droppedOnWishlist) {
-                // Yank the mirror DOM out before FC can animate it back
-                // to the grid origin. event.remove() doesn't cover this —
-                // the mirror is FC's drag clone, separate from the event
-                // it's mirroring.
                 try { mirrorElRef.current.remove(); } catch (_) { /* ignore */ }
             } else {
+                // Restore both display and visibility to whatever FC set
+                // (we may have changed either over the course of the drag).
+                mirrorElRef.current.style.display = '';
                 mirrorElRef.current.style.visibility = '';
             }
             mirrorElRef.current = null;
