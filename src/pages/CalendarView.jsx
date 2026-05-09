@@ -6,7 +6,7 @@ import ActivityModal from '../components/ActivityModal';
 import { saveActivity, deleteActivity, generateId } from '../db';
 import './CalendarView.css';
 
-const BUILD_TAG = 'wishlist-drag v16 — let FC see mouseup; display:none alone kills the flash';
+const BUILD_TAG = 'wishlist-drag v17 — always restore captured node (might be source)';
 
 export default function CalendarView({ dbData, selectedTripId, refreshDb, onDragOverWishlist, onUnschedule }) {
     // Build identifier — if the user does Ctrl+Shift+R and this doesn't
@@ -330,16 +330,25 @@ export default function CalendarView({ dbData, selectedTripId, refreshDb, onDrag
             mirrorObserverRef.current = null;
         }
         if (mirrorElRef.current) {
-            if (droppedOnWishlist) {
-                // Keep hidden; FC needs the DOM node to finish its own
-                // cleanup, and next-drag init seems to depend on it
-                // existing. .remove() here was breaking subsequent drags.
-                mirrorElRef.current.style.display = 'none';
-            } else {
-                mirrorElRef.current.style.display = '';
-                mirrorElRef.current.style.visibility = '';
-            }
+            // ALWAYS restore — observer might've grabbed a source event by
+            // mistake (FC repositions the source on dragStart which fires
+            // a child-list mutation; the new node looks like a freshly-
+            // added clone). Leaving display:none on it makes that calendar
+            // event permanently invisible and hit-test-dead, so subsequent
+            // drags on it (or on neighbors that share its slot column)
+            // silently fail.
+            mirrorElRef.current.style.display = '';
+            mirrorElRef.current.style.visibility = '';
             mirrorElRef.current = null;
+        }
+        // We still want to suppress the snap-back flash on a wishlist
+        // drop. .fc-event-dragging is the class FC adds *only* to the
+        // mirror clone (per @fullcalendar/interaction's ElementMirror),
+        // so hiding by that selector is safe for source events.
+        if (droppedOnWishlist) {
+            document.querySelectorAll('.fc-event-dragging').forEach(el => {
+                el.style.display = 'none';
+            });
         }
         if (ghostElRef.current) {
             ghostElRef.current.remove();
