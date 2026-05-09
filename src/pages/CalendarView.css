@@ -84,13 +84,16 @@
     z-index: 9999 !important;
 }
 
-/* v20: CSS-only mirror hide via body class.
-   Past attempts that touched mirror DOM (display:none in v15, .remove() in
-   v11–v14, inline style in others) all broke FC's cleanup → next drag
-   silently ignored. visibility:hidden via cascade only — DOM untouched,
-   FC pipeline intact, mirror just doesn't render while the cursor is
-   over the wishlist. Held briefly after wishlist-drop so the user
-   doesn't see the snap-back flash. */
+/* Hide FullCalendar's drag mirror while the cursor is over the wishlist.
+   The mirror's left/top is computed in the calendar grid's local frame
+   and lands hundreds of px off-cursor once the pointer crosses out of
+   the calendar. The wishlist's own drop-placeholder + sidebar outline
+   give enough visual feedback there. Toggled from AdminView when the
+   wishlist boundary is crossed. */
+/* Mirror element is the source event cloned + `.fc-event-dragging`
+   added (FC source: ElementMirror.getMirrorEl). FC never adds
+   `.fc-event-mirror` in this build, so selectors targeting that class
+   silently miss. */
 body.hide-fc-mirror .fc-event-dragging {
-    visibility: hidden !important;
+    display: none !important;
 }

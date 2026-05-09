@@ -6,7 +6,7 @@ import ActivityModal from '../components/ActivityModal';
 import { saveActivity, deleteActivity, generateId } from '../db';
 import './CalendarView.css';
 
-const BUILD_TAG = 'wishlist-drag v20 — CSS visibility:hidden via body class';
+const BUILD_TAG = 'wishlist-drag v18 — hands off the mirror, ghost-only feedback';
 
 export default function CalendarView({ dbData, selectedTripId, refreshDb, onDragOverWishlist, onUnschedule }) {
     useEffect(() => { console.log('[Travel]', BUILD_TAG); }, []);
@@ -203,10 +203,6 @@ export default function CalendarView({ dbData, selectedTripId, refreshDb, onDrag
                 if (inside !== wasInsideWishlistRef.current) {
                     wasInsideWishlistRef.current = inside;
                     onDragOverWishlist(inside);
-                    // Toggle CSS-only mirror hide (visibility:hidden via cascade,
-                    // DOM untouched). When inside the wishlist the off-cursor FC
-                    // mirror is suppressed so the ghost is the only visual.
-                    document.body.classList.toggle('hide-fc-mirror', inside);
                 }
             }
         };
@@ -233,17 +229,15 @@ export default function CalendarView({ dbData, selectedTripId, refreshDb, onDrag
             if (droppedOnWishlist) {
                 try { eventRef.remove(); } catch (_) { /* ignore */ }
                 onUnschedule(selectedTripId, eventId);
-                cleanupDrag(true);
-            } else {
-                cleanupDrag(false);
             }
+            cleanupDrag();
         };
         window.addEventListener('mouseup', onUp, true);
         window.addEventListener('touchend', onUp, true);
         upListenerRef.current = onUp;
     };
 
-    const cleanupDrag = (keepMirrorHidden = false) => {
+    const cleanupDrag = () => {
         onDragOverWishlist(false);
         if (moveListenerRef.current) {
             window.removeEventListener('mousemove', moveListenerRef.current);
@@ -262,13 +256,6 @@ export default function CalendarView({ dbData, selectedTripId, refreshDb, onDrag
         wishlistRectRef.current = null;
         wasInsideWishlistRef.current = false;
         lastPointerRef.current = { x: 0, y: 0 };
-        if (keepMirrorHidden) {
-            // Hold mirror hidden through FC's snap-back animation (~300ms).
-            // FC removes the mirror DOM itself; we just suppress the flash.
-            setTimeout(() => document.body.classList.remove('hide-fc-mirror'), 400);
-        } else {
-            document.body.classList.remove('hide-fc-mirror');
-        }
     };
 
     const handleEventDragStop = () => {
