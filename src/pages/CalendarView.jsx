@@ -6,19 +6,47 @@ import ActivityModal from '../components/ActivityModal';
 import { saveActivity, deleteActivity, generateId } from '../db';
 import './CalendarView.css';
 
-const BUILD_TAG = 'wishlist-drag v18 — hands off the mirror, ghost-only feedback';
+const BUILD_TAG = 'wishlist-drag v17 — always restore captured node (might be source)';
 
 export default function CalendarView({ dbData, selectedTripId, refreshDb, onDragOverWishlist, onUnschedule }) {
+    // Build identifier — if the user does Ctrl+Shift+R and this doesn't
+    // appear in the console, they didn't get the new bundle and any
+    // verification is meaningless.
     useEffect(() => { console.log('[Travel]', BUILD_TAG); }, []);
 
     const [selectedActivity, setSelectedActivity] = useState(null);
     const wishlistRectRef = useRef(null);
     const wasInsideWishlistRef = useRef(false);
+    // Calendar's bounding rect captured on dragStart. Once the cursor
+    // leaves this rect, FC's mirror positioning is unreliable (the
+    // captured node was `.fc-timegrid-event-harness`, an absolutely-
+    // positioned wrapper inside the grid — hiding inner children does
+    // nothing to the wrapper's position). So the new boundary is the
+    // calendar itself, not the wishlist.
+    const calendarRectRef = useRef(null);
+    const wasOutsideCalendarRef = useRef(false);
+    // Refs for the new approach:
+    //  - mirrorObserverRef:  MutationObserver that captures whatever node FC
+    //                        inserts as the drag mirror, regardless of class.
+    //  - mirrorElRef:         the captured mirror element, so we can hide it
+    //                        while over the wishlist.
+    //  - ghostElRef:          our own cursor-following ghost we create from
+    //                        scratch and append to <body>. Bypasses FC's
+    //                        coordinate frame entirely — no selector match
+    //                        problems, no calendar-grid-local positioning.
+    const mirrorObserverRef = useRef(null);
+    const mirrorElRef = useRef(null);
     const ghostElRef = useRef(null);
+    // Global pointermove listener registered for the duration of the drag.
+    // FC 6.x has no `eventDrag` option (the prop was silently ignored),
+    // so we have to subscribe to mousemove ourselves to get per-frame
+    // cursor coordinates during the drag.
     const moveListenerRef = useRef(null);
     const upListenerRef = useRef(null);
+    // Last known cursor position from our own mousemove listener. Used as
+    // a fallback because info.jsEvent's coords are unreliable on mouseup
+    // (sometimes 0/null, sometimes the snap-back position).
     const lastPointerRef = useRef({ x: 0, y: 0 });
-
     const activities = dbData.activities.filter(a => a.tripId === selectedTripId);
 
     const firstDate = activities
@@ -131,40 +159,48 @@ export default function CalendarView({ dbData, selectedTripId, refreshDb, onDrag
         } catch { info.event.remove(); }
     };
 
-    // ─── Wishlist drag-out ────────────────────────────────────
-    //
-    // Lessons from v8–v17: every attempt to manipulate FC's mirror DOM
-    // (capture via MutationObserver, hide via inline style, .remove())
-    // ended up either grabbing a source event by mistake or breaking
-    // FC's internal cleanup so the next drag wouldn't start. v18 keeps
-    // hands off FC's mirror entirely. We add three things and that's it:
-    //
-    //  1. A cursor-following ghost (<div> in <body>, position:fixed) that
-    //     gives unambiguous visual feedback at the actual cursor — FC's
-    //     own mirror sometimes lands at the snap-target slot rather than
-    //     the cursor, which is confusing in a maximized window. The ghost
-    //     is the source of truth; users look at the ghost.
-    //
-    //  2. A wishlist-rect boundary check on every mousemove → toggles
-    //     the sidebar's `is-dragging-over` class for outline + drop
-    //     placeholder.
-    //
-    //  3. A window-level mouseup that, if the cursor is over the
-    //     wishlist, calls event.remove() + onUnschedule(). FC's
-    //     `eventDragStop` is unreliable in this flow so we don't rely
-    //     on it.
-    //
-    // We let FC do whatever it wants with its own mirror DOM. There may
-    // be a brief snap-back flash when releasing — accept it. The
-    // alternative (touching the mirror) keeps breaking subsequent drags.
-
     const handleEventDragStart = (info) => {
         const sidebar = document.querySelector('.candidates-sidebar');
         if (sidebar) wishlistRectRef.current = sidebar.getBoundingClientRect();
         wasInsideWishlistRef.current = false;
+        const cal = document.querySelector('.calendar-container');
+        if (cal) calendarRectRef.current = cal.getBoundingClientRect();
+        wasOutsideCalendarRef.current = false;
 
-        // Cursor-following ghost. Position with the start cursor coords
-        // so it appears immediately, no first-frame flash.
+        // Capture FC's mirror element via MutationObserver — selector-free.
+        // FC inserts the mirror as a *new* DOM node sometime after this
+        // callback fires; we don't care which class it ends up with.
+        mirrorElRef.current = null;
+        if (mirrorObserverRef.current) mirrorObserverRef.current.disconnect();
+        const obs = new MutationObserver((records) => {
+            if (mirrorElRef.current) return;
+            for (const rec of records) {
+                for (const n of rec.addedNodes) {
+                    if (n.nodeType !== 1) continue;
+                    const cls = n.getAttribute?.('class') || '';
+                    const looksLikeMirror =
+                        cls.includes('fc-event') ||
+                        n.querySelector?.('.fc-event-main, .fc-event-title');
+                    if (looksLikeMirror) {
+                        mirrorElRef.current = n;
+                        // Hide on capture — FC's mirror positioning is
+                        // unreliable across the full drag (snaps to slot,
+                        // not cursor). Our ghost is the only visual.
+                        n.style.display = 'none';
+                        console.log('[wishlist] mirror captured + hidden:', cls || n.tagName);
+                        obs.disconnect();
+                        return;
+                    }
+                }
+            }
+        });
+        obs.observe(document.body, { childList: true, subtree: true });
+        mirrorObserverRef.current = obs;
+
+        // Build our own cursor-following ghost. This is the actual visible
+        // feedback over the wishlist — independent of FC's mirror. It's
+        // position:fixed so it tracks the cursor in viewport coords with
+        // zero involvement from FC's calendar-grid frame.
         const ghost = document.createElement('div');
         const sx = info?.jsEvent?.clientX || 0;
         const sy = info?.jsEvent?.clientY || 0;
@@ -173,8 +209,10 @@ export default function CalendarView({ dbData, selectedTripId, refreshDb, onDrag
             'background:var(--primary,#4f46e5)', 'color:white',
             'padding:6px 12px', 'border-radius:6px',
             'font-size:0.85rem', 'font-weight:600', 'opacity:0.92',
-            'box-shadow:0 4px 12px rgba(0,0,0,0.25)',
+            'box-shadow:0 4px 12px rgba(0,0,0,0.2)',
             'white-space:nowrap',
+            // Show immediately at the cursor; no "ghost not visible until
+            // first mousemove" gap during which the FC mirror flashes.
             `left:${sx + 12}px`, `top:${sy + 12}px`,
         ].join(';');
         ghost.textContent = info?.event?.title || '';
@@ -182,8 +220,11 @@ export default function CalendarView({ dbData, selectedTripId, refreshDb, onDrag
         ghostElRef.current = ghost;
         if (sx && sy) lastPointerRef.current = { x: sx, y: sy };
 
-        // FC 6.x has no `eventDrag` callback option — has to be a
-        // window listener.
+        // Subscribe to global pointer movement for the duration of the
+        // drag. FC's `eventDrag` prop is a no-op in 6.x — earlier fixes
+        // never ran because the callback was never invoked. mousemove
+        // on window fires during FC's drag the same way it would for
+        // any other pointer interaction.
         const onMove = (e) => {
             const t = e.touches?.[0] || e.changedTouches?.[0];
             const x = e.clientX || (t ? t.clientX : 0);
@@ -191,18 +232,34 @@ export default function CalendarView({ dbData, selectedTripId, refreshDb, onDrag
             if (!x || !y) return;
             lastPointerRef.current = { x, y };
 
+            // Belt-and-suspenders: even if MutationObserver missed the
+            // mirror, sweep any visible .fc-event-dragging clones. FC
+            // never adds this class to source events.
+            document.querySelectorAll('.fc-event-dragging').forEach(el => {
+                if (el.style.display !== 'none') el.style.display = 'none';
+            });
+            if (mirrorElRef.current && mirrorElRef.current.style.display !== 'none') {
+                mirrorElRef.current.style.display = 'none';
+            }
+
+            // Ghost is the only visual feedback — always cursor-tracking,
+            // calendar in/out doesn't matter.
             const g = ghostElRef.current;
             if (g) {
+                if (g.style.display !== 'block') g.style.display = 'block';
                 g.style.left = (x + 12) + 'px';
                 g.style.top = (y + 12) + 'px';
             }
 
+            // Wishlist boundary still drives the sidebar outline +
+            // drop-placeholder for affordance.
             const wr = wishlistRectRef.current;
             if (wr) {
-                const inside = x >= wr.left && x <= wr.right && y >= wr.top && y <= wr.bottom;
-                if (inside !== wasInsideWishlistRef.current) {
-                    wasInsideWishlistRef.current = inside;
-                    onDragOverWishlist(inside);
+                const isInsideWishlist =
+                    x >= wr.left && x <= wr.right && y >= wr.top && y <= wr.bottom;
+                if (isInsideWishlist !== wasInsideWishlistRef.current) {
+                    wasInsideWishlistRef.current = isInsideWishlist;
+                    onDragOverWishlist(isInsideWishlist);
                 }
             }
         };
@@ -210,10 +267,9 @@ export default function CalendarView({ dbData, selectedTripId, refreshDb, onDrag
         window.addEventListener('touchmove', onMove, { passive: true });
         moveListenerRef.current = onMove;
 
-        // Drop handler — window mouseup. Capture phase so ordering
-        // doesn't matter. We do NOT stopPropagation: FC needs the
-        // mouseup to clean up its own state (otherwise next drag
-        // is silently ignored).
+        // Drop handler — window-level mouseup, registered in capture phase
+        // so FC can't swallow it via stopPropagation. Doesn't depend on
+        // FC's eventDragStop callback firing (it didn't, in v9 testing).
         const eventRef = info.event;
         const eventId = info.event.id;
         const onUp = (e) => {
@@ -224,20 +280,40 @@ export default function CalendarView({ dbData, selectedTripId, refreshDb, onDrag
             const wr = wishlistRectRef.current;
             const droppedOnWishlist = !!wr && x && y &&
                 x >= wr.left && x <= wr.right && y >= wr.top && y <= wr.bottom;
-            console.log('[wishlist] drop check', { x, y, droppedOnWishlist });
+            console.log('[wishlist] mouseup drop check', {
+                x, y, droppedOnWishlist, hasWishlistRect: !!wr,
+            });
 
             if (droppedOnWishlist) {
+                // Don't stopPropagation / stopImmediatePropagation here.
+                // FC's mouseup handler must run for it to clean up its
+                // internal "is-dragging" state — without that, the next
+                // drag attempt is silently ignored. We let FC's
+                // dragStop pipeline run and just hide the resulting
+                // mirror animation with display:none (which suppresses
+                // any paint, snap-back included).
                 try { eventRef.remove(); } catch (_) { /* ignore */ }
                 onUnschedule(selectedTripId, eventId);
+
+                const sweepHide = () => {
+                    document.querySelectorAll('.fc-event-dragging').forEach(el => {
+                        el.style.display = 'none';
+                    });
+                };
+                sweepHide();
+                requestAnimationFrame(sweepHide);
+                setTimeout(sweepHide, 100);
+                setTimeout(sweepHide, 250);
             }
-            cleanupDrag();
+
+            cleanupDrag(droppedOnWishlist);
         };
         window.addEventListener('mouseup', onUp, true);
         window.addEventListener('touchend', onUp, true);
         upListenerRef.current = onUp;
     };
 
-    const cleanupDrag = () => {
+    const cleanupDrag = (droppedOnWishlist = false) => {
         onDragOverWishlist(false);
         if (moveListenerRef.current) {
             window.removeEventListener('mousemove', moveListenerRef.current);
@@ -249,17 +325,48 @@ export default function CalendarView({ dbData, selectedTripId, refreshDb, onDrag
             window.removeEventListener('touchend', upListenerRef.current, true);
             upListenerRef.current = null;
         }
+        if (mirrorObserverRef.current) {
+            mirrorObserverRef.current.disconnect();
+            mirrorObserverRef.current = null;
+        }
+        if (mirrorElRef.current) {
+            // ALWAYS restore — observer might've grabbed a source event by
+            // mistake (FC repositions the source on dragStart which fires
+            // a child-list mutation; the new node looks like a freshly-
+            // added clone). Leaving display:none on it makes that calendar
+            // event permanently invisible and hit-test-dead, so subsequent
+            // drags on it (or on neighbors that share its slot column)
+            // silently fail.
+            mirrorElRef.current.style.display = '';
+            mirrorElRef.current.style.visibility = '';
+            mirrorElRef.current = null;
+        }
+        // We still want to suppress the snap-back flash on a wishlist
+        // drop. .fc-event-dragging is the class FC adds *only* to the
+        // mirror clone (per @fullcalendar/interaction's ElementMirror),
+        // so hiding by that selector is safe for source events.
+        if (droppedOnWishlist) {
+            document.querySelectorAll('.fc-event-dragging').forEach(el => {
+                el.style.display = 'none';
+            });
+        }
         if (ghostElRef.current) {
             ghostElRef.current.remove();
             ghostElRef.current = null;
         }
         wishlistRectRef.current = null;
+        calendarRectRef.current = null;
+        wasOutsideCalendarRef.current = false;
         wasInsideWishlistRef.current = false;
         lastPointerRef.current = { x: 0, y: 0 };
     };
 
     const handleEventDragStop = () => {
-        // Belt-and-suspenders cleanup if FC's dragStop fires. Idempotent.
+        // Drop logic is handled by the window mouseup listener registered
+        // in handleEventDragStart (FC's dragStop wasn't firing reliably).
+        // This is just a belt-and-suspenders cleanup if dragStop *does*
+        // fire. cleanupDrag is idempotent.
+        console.log('[wishlist] FC dragStop fired (informational)');
         cleanupDrag();
     };
 
