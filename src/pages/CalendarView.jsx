@@ -6,7 +6,7 @@ import ActivityModal from '../components/ActivityModal';
 import { saveActivity, deleteActivity, generateId } from '../db';
 import './CalendarView.css';
 
-const BUILD_TAG = 'wishlist-drag v14 — always hide mirror, ghost is the only feedback';
+const BUILD_TAG = 'wishlist-drag v15 — hide-only, never .remove() (FC needs the DOM)';
 
 export default function CalendarView({ dbData, selectedTripId, refreshDb, onDragOverWishlist, onUnschedule }) {
     // Build identifier — if the user does Ctrl+Shift+R and this doesn't
@@ -291,19 +291,19 @@ export default function CalendarView({ dbData, selectedTripId, refreshDb, onDrag
                 try { eventRef.remove(); } catch (_) { /* ignore */ }
                 onUnschedule(selectedTripId, eventId);
 
-                // Nuclear sweep — remove every FC drag clone right now,
-                // and again on the next frame, and once more 100ms later.
-                // FC's dragStop pipeline runs after this and may create
-                // additional mirrors (snap-back animation source). Sweep
-                // them all. Source events don't have .fc-event-dragging
-                // so this won't touch persisted events.
-                const sweep = () => {
-                    document.querySelectorAll('.fc-event-dragging').forEach(el => el.remove());
+                // Hide (not remove) every FC drag clone for ~250ms so
+                // the snap-back animation never paints. Removing the DOM
+                // here breaks FC's internal cleanup and the next drag
+                // can't start.
+                const sweepHide = () => {
+                    document.querySelectorAll('.fc-event-dragging').forEach(el => {
+                        el.style.display = 'none';
+                    });
                 };
-                sweep();
-                requestAnimationFrame(sweep);
-                setTimeout(sweep, 100);
-                setTimeout(sweep, 250);
+                sweepHide();
+                requestAnimationFrame(sweepHide);
+                setTimeout(sweepHide, 100);
+                setTimeout(sweepHide, 250);
             }
 
             cleanupDrag(droppedOnWishlist);
@@ -331,10 +331,11 @@ export default function CalendarView({ dbData, selectedTripId, refreshDb, onDrag
         }
         if (mirrorElRef.current) {
             if (droppedOnWishlist) {
-                try { mirrorElRef.current.remove(); } catch (_) { /* ignore */ }
+                // Keep hidden; FC needs the DOM node to finish its own
+                // cleanup, and next-drag init seems to depend on it
+                // existing. .remove() here was breaking subsequent drags.
+                mirrorElRef.current.style.display = 'none';
             } else {
-                // Restore both display and visibility to whatever FC set
-                // (we may have changed either over the course of the drag).
                 mirrorElRef.current.style.display = '';
                 mirrorElRef.current.style.visibility = '';
             }
