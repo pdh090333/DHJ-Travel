@@ -20,9 +20,69 @@
 
 .trip-manager {
     display: flex;
+    flex-direction: column;
+    gap: 0.6rem;
+    flex: 1;
+}
+
+.trip-manager-row {
+    display: flex;
     align-items: center;
     gap: 0.5rem;
+}
+
+.trip-period-row {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    flex-wrap: wrap;
+}
+
+.trip-period-field {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+}
+
+.trip-period-label {
+    font-size: 0.8rem;
+    font-weight: 700;
+    color: var(--text-secondary);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+}
+
+.trip-date-input {
+    padding: 0.45rem 0.6rem;
+    border-radius: var(--radius-md);
+    border: 1px solid var(--border-color);
+    background: var(--bg-color);
+    color: var(--text-primary);
+    font-size: 0.9rem;
+    font-weight: 600;
+    font-family: inherit;
+}
+
+.trip-date-input:focus {
+    outline: none;
+    border-color: var(--primary);
+    background: var(--panel-bg);
+}
+
+.trip-period-arrow {
+    color: var(--text-secondary);
+    font-weight: 700;
+}
+
+.trip-period-summary {
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+    padding: 0.25rem 0.6rem;
+    background: var(--bg-color);
+    border-radius: var(--radius-md);
+    border: 1px dashed var(--border-color);
     flex: 1;
+    min-width: 200px;
 }
 
 .trip-selector-admin,
