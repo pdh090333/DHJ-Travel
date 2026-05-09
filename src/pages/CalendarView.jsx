@@ -6,7 +6,7 @@ import ActivityModal from '../components/ActivityModal';
 import { saveActivity, deleteActivity, generateId } from '../db';
 import './CalendarView.css';
 
-const BUILD_TAG = 'wishlist-drag v17 — always restore captured node (might be source)';
+const BUILD_TAG = 'wishlist-drag v19 — distinguish mirror from source via known-set';
 
 export default function CalendarView({ dbData, selectedTripId, refreshDb, onDragOverWishlist, onUnschedule }) {
     // Build identifier — if the user does Ctrl+Shift+R and this doesn't
@@ -167,9 +167,16 @@ export default function CalendarView({ dbData, selectedTripId, refreshDb, onDrag
         if (cal) calendarRectRef.current = cal.getBoundingClientRect();
         wasOutsideCalendarRef.current = false;
 
-        // Capture FC's mirror element via MutationObserver — selector-free.
-        // FC inserts the mirror as a *new* DOM node sometime after this
-        // callback fires; we don't care which class it ends up with.
+        // Snapshot every existing event-related element at dragStart.
+        // Anything FC adds during the drag that's NOT in this set is the
+        // mirror clone. Anything that IS in the set is the source event
+        // being repositioned by FC — we must never touch it.
+        const knownHarnesses = new Set();
+        document.querySelectorAll(
+            '.fc-event, .fc-timegrid-event-harness, .fc-timegrid-event, .fc-daygrid-event'
+        ).forEach(el => knownHarnesses.add(el));
+        console.log('[wishlist] snapshot existing events:', knownHarnesses.size);
+
         mirrorElRef.current = null;
         if (mirrorObserverRef.current) mirrorObserverRef.current.disconnect();
         const obs = new MutationObserver((records) => {
@@ -177,17 +184,23 @@ export default function CalendarView({ dbData, selectedTripId, refreshDb, onDrag
             for (const rec of records) {
                 for (const n of rec.addedNodes) {
                     if (n.nodeType !== 1) continue;
+                    if (knownHarnesses.has(n)) continue;
+                    // Direct match
                     const cls = n.getAttribute?.('class') || '';
-                    const looksLikeMirror =
-                        cls.includes('fc-event') ||
-                        n.querySelector?.('.fc-event-main, .fc-event-title');
-                    if (looksLikeMirror) {
+                    const isHarness = /fc-(timegrid-event-harness|daygrid-event|event-mirror)/.test(cls);
+                    if (isHarness) {
                         mirrorElRef.current = n;
-                        // Hide on capture — FC's mirror positioning is
-                        // unreliable across the full drag (snaps to slot,
-                        // not cursor). Our ghost is the only visual.
                         n.style.display = 'none';
-                        console.log('[wishlist] mirror captured + hidden:', cls || n.tagName);
+                        console.log('[wishlist] mirror captured + hidden:', cls);
+                        obs.disconnect();
+                        return;
+                    }
+                    // Or wrapped: descendant harness that isn't known
+                    const inner = n.querySelector?.('.fc-timegrid-event-harness, .fc-daygrid-event');
+                    if (inner && !knownHarnesses.has(inner)) {
+                        mirrorElRef.current = inner;
+                        inner.style.display = 'none';
+                        console.log('[wishlist] mirror captured (nested) + hidden:', inner.className);
                         obs.disconnect();
                         return;
                     }
