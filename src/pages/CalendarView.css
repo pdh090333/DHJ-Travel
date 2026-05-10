@@ -90,13 +90,19 @@
     --fc-border-color: var(--border-color);
 }
 
-/* slotDuration is 1h, so this height is the per-hour row height.
-   18 hour rows × 1.4rem ≈ 22.4rem ≈ 360px — comfortably fits the
-   calendar area on every viewport. snapDuration='00:15:00' keeps
-   drag/select precision at 15 minutes even though the visual grid
-   only draws hour boundaries via table rows. */
+/* slotDuration is 1h, so this controls the per-hour row height.
+   We use `height` (not `min-height`) because the slot is a <tr> and
+   table rows ignore min-height in most browsers — earlier attempts
+   with min-height looked unchanged because expandRows={true} was
+   silently governing the row size in both environments instead.
+   With `height: 4rem !important` (18 rows × 64px = 1152px) every
+   monitor renders a 64px row regardless of expandRows. A 1920x1080
+   laptop (~750px usable) shows a vertical scrollbar covering ~5–6h
+   while a 27" QHD desktop (~1100px) shows ~1h of scroll — the rows
+   are now uniformly readable instead of being squeezed on the laptop.
+   snapDuration='00:15:00' keeps drag/select precision at 15 minutes. */
 .fc .fc-timegrid-slot {
-    height: 1.4rem !important;
+    height: 4rem !important;
 }
 
 .fc-theme-standard .fc-timegrid-slot-label-cushion,
@@ -127,12 +133,6 @@
         transparent 100%
     );
     opacity: 1;
-}
-
-/* Belt-and-suspenders: keep the time-grid scroller from ever scrolling. */
-.fc .fc-timegrid .fc-scroller-liquid-absolute,
-.fc .fc-timegrid .fc-scroller {
-    overflow: hidden !important;
 }
 
 /* Reduce the day-column header (요일 + 날짜 row). */
