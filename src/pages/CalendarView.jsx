@@ -3,7 +3,7 @@ import FullCalendar from '@fullcalendar/react';
 import timeGridPlugin from '@fullcalendar/timegrid';
 import interactionPlugin from '@fullcalendar/interaction';
 import ActivityModal from '../components/ActivityModal';
-import { saveActivity, deleteActivity, generateId } from '../db';
+import { saveActivity, deleteActivity, generateId, normalizeTags, resolveActivityColor } from '../db';
 import './CalendarView.css';
 
 const BUILD_TAG = 'wishlist-drag v18 — hands off the mirror, ghost-only feedback';
@@ -24,11 +24,10 @@ const addOneDay = (dateStr) => {
     return `${next.getUTCFullYear()}-${String(next.getUTCMonth() + 1).padStart(2, '0')}-${String(next.getUTCDate()).padStart(2, '0')}`;
 };
 
-export default function CalendarView({ dbData, selectedTripId, refreshDb, onDragOverWishlist, onUnschedule }) {
+export default function CalendarView({ dbData, selectedTripId, refreshDb, onDragOverWishlist, onUnschedule, viewMode = 'week' }) {
     useEffect(() => { console.log('[Travel]', BUILD_TAG); }, []);
 
     const [selectedActivity, setSelectedActivity] = useState(null);
-    const [viewMode, setViewMode] = useState('week');
     const wishlistRectRef = useRef(null);
     const wasInsideWishlistRef = useRef(false);
     const ghostElRef = useRef(null);
@@ -44,10 +43,6 @@ export default function CalendarView({ dbData, selectedTripId, refreshDb, onDrag
 
     const tripDuration = computeTripDuration(currentTrip?.startDate, currentTrip?.endDate);
     const hasTripPeriod = tripDuration > 0;
-
-    useEffect(() => {
-        if (viewMode === 'trip' && !hasTripPeriod) setViewMode('week');
-    }, [viewMode, hasTripPeriod]);
 
     const firstDate = currentTrip?.startDate
         || activities.map(a => a.date).filter(Boolean).sort()[0]
@@ -67,11 +62,11 @@ export default function CalendarView({ dbData, selectedTripId, refreshDb, onDrag
             start: currentTrip.startDate,
             end: addOneDay(currentTrip.endDate)
         },
-        headerToolbar: { left: '', center: 'title', right: '' }
+        headerToolbar: false
     } : {
         initialView: 'timeGridWeek',
         initialDate: firstDate,
-        headerToolbar: { left: 'prev,next today', center: 'title', right: 'timeGridWeek,timeGridDay' }
+        headerToolbar: { left: 'prev,next today', center: '', right: 'timeGridWeek,timeGridDay' }
     };
 
     const events = activities.map(act => {
@@ -84,13 +79,16 @@ export default function CalendarView({ dbData, selectedTripId, refreshDb, onDrag
             endStr = startObj.toISOString().slice(0, 16) + ':00';
         }
 
+        const color = resolveActivityColor(act, currentTrip?.tags) || 'var(--primary)';
+        const baseTitle = act.title || '새 일정';
+        const titleWithTag = act.tag ? `[${act.tag}] ${baseTitle}` : baseTitle;
         return {
             id: act.id,
-            title: act.title || '새 일정',
+            title: titleWithTag,
             start: startStr,
             end: endStr,
-            backgroundColor: 'var(--primary)',
-            borderColor: 'var(--primary)',
+            backgroundColor: color,
+            borderColor: color,
             extendedProps: act
         };
     }).filter(e => e.start);
@@ -313,31 +311,19 @@ export default function CalendarView({ dbData, selectedTripId, refreshDb, onDrag
 
     return (
         <div className="calendar-page">
-            <div className="calendar-toolbar">
-                <div className="view-mode-toggle">
-                    <button
-                        className={`btn btn-sm ${viewMode === 'week' ? 'btn-primary' : 'btn-ghost'}`}
-                        onClick={() => setViewMode('week')}
-                    >
-                        주간 보기
-                    </button>
-                    <button
-                        className={`btn btn-sm ${viewMode === 'trip' ? 'btn-primary' : 'btn-ghost'}`}
-                        onClick={() => hasTripPeriod && setViewMode('trip')}
-                        disabled={!hasTripPeriod}
-                        title={hasTripPeriod ? '' : '먼저 여행 기간을 설정하세요'}
-                    >
-                        여행 기간 {hasTripPeriod ? `(${tripDuration}일)` : ''}
-                    </button>
-                </div>
-                <p className="calendar-instructions">💡 일정을 드래그하여 예약하거나 후보지로 옮기세요!</p>
-            </div>
             <div className="calendar-container">
                 <FullCalendar
                     key={`${selectedTripId}-${firstDate}-${viewMode}-${tripDuration}`}
                     plugins={[timeGridPlugin, interactionPlugin]}
                     {...calendarConfig}
                     allDaySlot={false}
+                    slotMinTime="06:00:00"
+                    slotMaxTime="24:00:00"
+                    slotDuration="01:00:00"
+                    snapDuration="00:15:00"
+                    slotLabelInterval="01:00:00"
+                    expandRows={true}
+                    displayEventTime={false}
                     events={events} editable={true} selectable={true} selectMirror={true}
                     eventChange={handleEventChange} eventClick={handleEventClick} select={handleDateSelect}
                     eventReceive={handleEventReceive} eventDragStop={handleEventDragStop}
@@ -350,6 +336,7 @@ export default function CalendarView({ dbData, selectedTripId, refreshDb, onDrag
                     activity={selectedActivity} onClose={() => setSelectedActivity(null)}
                     onSave={handleSaveModal} onDelete={handleDeleteModal}
                     onMoveToCandidates={() => onUnschedule(selectedTripId, selectedActivity.id)}
+                    availableTags={normalizeTags(currentTrip?.tags)}
                 />
             )}
         </div>

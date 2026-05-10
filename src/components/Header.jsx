@@ -47,14 +47,14 @@ export default function Header({ currentView, onViewChange, onBackToTrips, selec
                         onClick={() => onViewChange('itinerary')}
                     >
                         <CalendarDays size={18} />
-                        <span className="hidden-mobile">Itinerary</span>
+                        <span className="hidden-mobile">일정 보기</span>
                     </button>
                     <button
                         className={`btn ${currentView === 'admin' ? 'btn-primary' : 'btn-ghost'}`}
                         onClick={() => onViewChange('admin')}
                     >
                         <Settings size={18} />
-                        <span className="hidden-mobile">Manage</span>
+                        <span className="hidden-mobile">일정 수립</span>
                     </button>
                     <ThemeToggle />
                     {user && (

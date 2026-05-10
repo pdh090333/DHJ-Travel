@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { Star } from 'lucide-react';
+import { Star, Info } from 'lucide-react';
 import './ActivityModal.css';
 
-export default function ActivityModal({ activity, onClose, onSave, onDelete, onMoveToCandidates }) {
+export default function ActivityModal({ activity, onClose, onSave, onDelete, onMoveToCandidates, availableTags = [] }) {
     const [formData, setFormData] = useState({
         title: '',
         date: '',
@@ -14,7 +14,8 @@ export default function ActivityModal({ activity, onClose, onSave, onDelete, onM
         arrivalUrl: '',
         notes: '',
         imageUrl: '',
-        reviewUrl: ''
+        reviewUrl: '',
+        tag: ''
     });
 
     useEffect(() => {
@@ -28,10 +29,20 @@ export default function ActivityModal({ activity, onClose, onSave, onDelete, onM
                 arrivalUrl: activity.arrivalUrl || '',
                 notes: activity.notes || '',
                 imageUrl: activity.imageUrl || '',
-                reviewUrl: activity.reviewUrl || ''
+                reviewUrl: activity.reviewUrl || '',
+                tag: activity.tag || ''
             });
         }
     }, [activity]);
+
+    // availableTags arrives as [{name, color}, ...]. The dropdown only needs names.
+    const tagNames = availableTags.map(t => t?.name || t);
+    // If the saved tag is no longer in the trip's tag list (e.g. it was
+    // deleted from the taxonomy), keep it as an option so the dropdown
+    // doesn't silently drop the value.
+    const tagOptions = formData.tag && !tagNames.includes(formData.tag)
+        ? [...tagNames, formData.tag]
+        : tagNames;
 
     const extractDirectImageUrl = (url) => {
         if (!url) return '';
@@ -97,31 +108,66 @@ export default function ActivityModal({ activity, onClose, onSave, onDelete, onM
                         </div>
                     </div>
 
+                    <div className="form-row">
+                        <div className="form-group" style={{ flex: '0 0 8rem' }}>
+                            <label>태그</label>
+                            <select name="tag" value={formData.tag} onChange={handleChange}>
+                                <option value="">(없음)</option>
+                                {tagOptions.map(t => (
+                                    <option key={t} value={t}>{t}</option>
+                                ))}
+                            </select>
+                        </div>
+                        <div className="form-group">
+                            <label>일정 제목</label>
+                            <input type="text" name="title" value={formData.title} onChange={handleChange} placeholder="비행기 탑승, 호텔 체크인 등" required />
+                        </div>
+                    </div>
+
+                    {/*
+                      출발지 입력 (이름 + 구글맵 링크) — 사용 중지됨.
+                      직전 일정의 도착지를 자동으로 출발지로 이어붙여 길찾기에 사용합니다.
+                      복원 시 아래 두 form-row 주석 해제 + (선택) 도착지 ⓘ 안내 문구 조정.
+
+                      <div className="form-row">
+                          <div className="form-group">
+                              <label>출발지 이름</label>
+                              <input type="text" name="departure" value={formData.departure} onChange={handleChange} placeholder="인천공항" />
+                          </div>
+                          <div className="form-group">
+                              <label>도착지 이름</label>
+                              <input type="text" name="arrival" value={formData.arrival} onChange={handleChange} placeholder="나리타공항" />
+                          </div>
+                      </div>
+                      <div className="form-row">
+                          <div className="form-group">
+                              <label>출발지 구글맵 링크</label>
+                              <input type="url" name="departureUrl" value={formData.departureUrl} onChange={handleChange} placeholder="https://goo.gl/maps/..." />
+                          </div>
+                          <div className="form-group">
+                              <label>도착지 구글맵 링크</label>
+                              <input type="url" name="arrivalUrl" value={formData.arrivalUrl} onChange={handleChange} placeholder="https://goo.gl/maps/..." />
+                          </div>
+                      </div>
+                    */}
+
                     <div className="form-group">
-                        <label>일정 제목</label>
-                        <input type="text" name="title" value={formData.title} onChange={handleChange} placeholder="비행기 탑승, 호텔 체크인 등" required />
+                        <label>도착지 이름</label>
+                        <input type="text" name="arrival" value={formData.arrival} onChange={handleChange} placeholder="나리타공항" />
                     </div>
 
-                    <div className="form-row">
-                        <div className="form-group">
-                            <label>출발지 이름</label>
-                            <input type="text" name="departure" value={formData.departure} onChange={handleChange} placeholder="인천공항" />
-                        </div>
-                        <div className="form-group">
-                            <label>도착지 이름</label>
-                            <input type="text" name="arrival" value={formData.arrival} onChange={handleChange} placeholder="나리타공항" />
-                        </div>
-                    </div>
-
-                    <div className="form-row">
-                        <div className="form-group">
-                            <label>출발지 구글맵 링크</label>
-                            <input type="url" name="departureUrl" value={formData.departureUrl} onChange={handleChange} placeholder="https://goo.gl/maps/..." />
-                        </div>
-                        <div className="form-group">
-                            <label>도착지 구글맵 링크</label>
-                            <input type="url" name="arrivalUrl" value={formData.arrivalUrl} onChange={handleChange} placeholder="https://goo.gl/maps/..." />
-                        </div>
+                    <div className="form-group">
+                        <label>
+                            도착지 구글맵 링크
+                            <span
+                                className="form-info-icon"
+                                title="이 도착지가 다음 일정의 출발지로 자동 사용되어 길찾기됩니다. 출발지를 따로 입력하지 않습니다."
+                                aria-label="이 도착지가 다음 일정의 출발지로 자동 사용되어 길찾기됩니다."
+                            >
+                                <Info size={14} />
+                            </span>
+                        </label>
+                        <input type="url" name="arrivalUrl" value={formData.arrivalUrl} onChange={handleChange} placeholder="https://goo.gl/maps/..." />
                     </div>
 
                     <div className="form-group">

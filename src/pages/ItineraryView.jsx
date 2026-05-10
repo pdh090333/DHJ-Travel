@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Star, ExternalLink, Calendar } from 'lucide-react';
+import { resolveActivityColor } from '../db';
 import './ItineraryView.css';
 
 const WEEKDAYS = ['일', '월', '화', '수', '목', '금', '토'];
@@ -64,6 +65,28 @@ export default function ItineraryView({ dbData, selectedTripId }) {
 
     const totalDays = tripDates.length;
 
+    // Predecessor lookup: globally sort by (date, startTime) so the
+    // previous activity's arrival can fill in an empty `departure`.
+    // Crosses day boundaries naturally — Day 2 morning chains from Day 1 night.
+    const globalSorted = [...tripActivities]
+        .filter(a => a.date && ISO_DATE.test(a.date))
+        .sort((a, b) => a.date.localeCompare(b.date) || sortByTime(a, b));
+    const predecessorMap = new Map();
+    for (let i = 1; i < globalSorted.length; i++) {
+        const prev = globalSorted[i - 1];
+        if (prev.arrival) predecessorMap.set(globalSorted[i].id, prev);
+    }
+    const getEffectiveDeparture = (activity) => {
+        if (activity.departure) {
+            return { departure: activity.departure, departureUrl: activity.departureUrl, inherited: false };
+        }
+        const prev = predecessorMap.get(activity.id);
+        if (prev) {
+            return { departure: prev.arrival, departureUrl: prev.arrivalUrl, inherited: true };
+        }
+        return { departure: '', departureUrl: '', inherited: false };
+    };
+
     const getLocationParam = (name, url) => {
         if (!url) return name;
 
@@ -87,8 +110,8 @@ export default function ItineraryView({ dbData, selectedTripId }) {
         return name;
     };
 
-    const buildDirectionsUrl = (activity) => {
-        const originParam = getLocationParam(activity.departure, activity.departureUrl);
+    const buildDirectionsUrl = (activity, effDeparture) => {
+        const originParam = getLocationParam(effDeparture.departure, effDeparture.departureUrl);
         const destParam = getLocationParam(activity.arrival, activity.arrivalUrl);
 
         if (activity.date && activity.startTime) {
@@ -105,25 +128,37 @@ export default function ItineraryView({ dbData, selectedTripId }) {
         return `https://www.google.com/maps/dir/?api=1&origin=${encodeURIComponent(originParam)}&destination=${encodeURIComponent(destParam)}`;
     };
 
-    const renderActivity = (activity) => (
+    const renderActivity = (activity) => {
+        const eff = getEffectiveDeparture(activity);
+        const hasDeparture = !!eff.departure;
+        const hasArrival = !!activity.arrival;
+        const tagColor = resolveActivityColor(activity, currentTrip?.tags);
+        const cardStyle = tagColor ? { '--activity-color': tagColor } : undefined;
+        return (
         <div key={activity.id} className="timeline-item">
             <div className="time-block">
                 <span>{activity.startTime}</span>
                 <span className="time-separator">-</span>
                 <span>{activity.endTime}</span>
             </div>
-            <div className="activity-card">
-                <h3>{activity.title}</h3>
+            <div className="activity-card" style={cardStyle}>
+                <h3>
+                    {activity.tag && <span className="activity-tag">{activity.tag}</span>}
+                    {activity.title}
+                </h3>
 
                 <div className="locations-wrapper">
-                    {activity.departure && (
-                        <div className="location-info">
+                    {hasDeparture && (
+                        <div className={`location-info${eff.inherited ? ' location-inherited' : ''}`}>
                             <span className="location-label">출발: </span>
-                            <a href={activity.departureUrl || `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(activity.departure)}`} target="_blank" rel="noopener noreferrer" className="location-link">📍 {activity.departure}</a>
+                            <a href={eff.departureUrl || `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(eff.departure)}`} target="_blank" rel="noopener noreferrer" className="location-link">
+                                📍 {eff.departure}
+                                {eff.inherited && <span className="inherited-tag" title="직전 일정의 도착지에서 이어짐"> (직전 도착지)</span>}
+                            </a>
                         </div>
                     )}
 
-                    {activity.arrival && (
+                    {hasArrival && (
                         <div className="location-info">
                             <span className="location-label">도착: </span>
                             <a href={activity.arrivalUrl || `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(activity.arrival)}`} target="_blank" rel="noopener noreferrer" className="location-link">📍 {activity.arrival}</a>
@@ -140,18 +175,18 @@ export default function ItineraryView({ dbData, selectedTripId }) {
                 {activity.notes && <p className="notes">{activity.notes}</p>}
 
                 <div className="activity-meta-actions">
-                    {(activity.departure || activity.arrival) && (
+                    {(hasDeparture || hasArrival) && (
                         <a
                             className="btn btn-ghost action-btn"
                             href={
-                                (activity.departure && activity.arrival)
-                                    ? buildDirectionsUrl(activity)
-                                    : `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(getLocationParam(activity.arrival || activity.departure, activity.arrivalUrl || activity.departureUrl))}`
+                                (hasDeparture && hasArrival)
+                                    ? buildDirectionsUrl(activity, eff)
+                                    : `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(getLocationParam(activity.arrival || eff.departure, activity.arrivalUrl || eff.departureUrl))}`
                             }
                             target="_blank"
                             rel="noopener noreferrer"
                         >
-                            🗺️ {(activity.departure && activity.arrival) ? '길찾기' : '지도 보기'}
+                            🗺️ {(hasDeparture && hasArrival) ? '길찾기' : '지도 보기'}
                         </a>
                     )}
 
@@ -168,7 +203,8 @@ export default function ItineraryView({ dbData, selectedTripId }) {
                 </div>
             </div>
         </div>
-    );
+        );
+    };
 
     return (
         <div className="itinerary-page">

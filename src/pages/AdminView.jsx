@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { replaceTripActivities, exportToCSV, parseCSV, generateId, saveTrip, deleteTrip, saveCandidate, deleteCandidate } from '../db';
-import { Download, Upload, Plus, Trash2, Save, Trash, MapPin, Link as LinkIcon, ExternalLink } from 'lucide-react';
+import { replaceTripActivities, exportToCSV, parseCSV, generateId, saveTrip, deleteTrip, saveCandidate, deleteCandidate, saveActivity, DEFAULT_TAGS, COLOR_PALETTE, DEFAULT_TAG_COLOR, normalizeTags } from '../db';
+import { Download, Upload, Plus, Trash2, Save, Trash, MapPin, Link as LinkIcon, ExternalLink, Tag, X, ChevronDown, ChevronUp } from 'lucide-react';
 import { Draggable } from '@fullcalendar/interaction';
 import CalendarView from './CalendarView';
 import './AdminView.css';
@@ -32,6 +32,20 @@ export default function AdminView({ dbData, refreshDb, selectedTripId: initialTr
     const [tripEndDate, setTripEndDate] = useState(initialTrip?.endDate || '');
 
     const [newCandidate, setNewCandidate] = useState({ title: '', url: '', notes: '', imageUrl: '' });
+    const [newTagInput, setNewTagInput] = useState('');
+    const [editingTag, setEditingTag] = useState(null);
+    const [editingTagValue, setEditingTagValue] = useState('');
+    const [colorPickerForTag, setColorPickerForTag] = useState(null);
+    const [headerExpanded, setHeaderExpanded] = useState(false);
+    const [viewMode, setViewMode] = useState(() => {
+        const tr = dbData.trips.find(t => t.id === (initialTripId || dbData.trips[0]?.id));
+        const sd = tr?.startDate || '';
+        const ed = tr?.endDate || '';
+        if (!sd || !ed) return 'week';
+        const [sy, sm, sdd] = sd.split('-').map(Number);
+        const [ey, em, edd] = ed.split('-').map(Number);
+        return Date.UTC(ey, em - 1, edd) >= Date.UTC(sy, sm - 1, sdd) ? 'trip' : 'week';
+    });
 
     // Was useState — but toggling state on every wishlist boundary crossing
     // forced an AdminView+CalendarView re-render mid-drag, which rebuilt
@@ -249,9 +263,98 @@ export default function AdminView({ dbData, refreshDb, selectedTripId: initialTr
         setTripEndDate(next?.endDate || '');
     };
 
-    return (
-        <div className="admin-page">
-            <div className="admin-header">
+    // ─── Tag management ─────────────────────────────────
+    const currentTrip = dbData.trips.find(t => t.id === selectedTripId);
+    const currentTags = normalizeTags(currentTrip?.tags);
+
+    const persistTags = async (newTags) => {
+        if (!currentTrip) return;
+        await saveTrip({
+            ...currentTrip,
+            title: selectedTripTitle,
+            startDate: tripStartDate,
+            endDate: tripEndDate,
+            tags: newTags
+        });
+        await refreshDb();
+    };
+
+    const handleAddTag = async (e) => {
+        e.preventDefault();
+        const t = newTagInput.trim();
+        if (!t) return;
+        if (currentTags.some(x => x.name === t)) {
+            setNewTagInput('');
+            return;
+        }
+        await persistTags([...currentTags, { name: t, color: DEFAULT_TAG_COLOR }]);
+        setNewTagInput('');
+    };
+
+    const handleRemoveTag = async (tag) => {
+        if (!confirm(`"${tag.name}" 태그를 삭제하시겠습니까? (이 태그가 적용된 활동은 표시 이름만 남습니다.)`)) return;
+        await persistTags(currentTags.filter(t => t.name !== tag.name));
+    };
+
+    const handleRenameTag = async (oldName, newName) => {
+        const trimmed = newName.trim();
+        if (!trimmed || trimmed === oldName) return;
+        if (currentTags.some(t => t.name === trimmed)) {
+            alert(`"${trimmed}" 태그가 이미 있습니다.`);
+            return;
+        }
+        const newTags = currentTags.map(t => t.name === oldName ? { ...t, name: trimmed } : t);
+        const affected = dbData.activities.filter(
+            a => a.tripId === selectedTripId && a.tag === oldName
+        );
+        await Promise.all([
+            saveTrip({
+                ...currentTrip,
+                title: selectedTripTitle,
+                startDate: tripStartDate,
+                endDate: tripEndDate,
+                tags: newTags
+            }),
+            ...affected.map(a => saveActivity({ ...a, tag: trimmed }))
+        ]);
+        await refreshDb();
+    };
+
+    const handleChangeTagColor = async (tagName, color) => {
+        const newTags = currentTags.map(t => t.name === tagName ? { ...t, color } : t);
+        await persistTags(newTags);
+        setColorPickerForTag(null);
+    };
+
+    const handleSeedDefaultTags = async () => {
+        await persistTags([...DEFAULT_TAGS]);
+    };
+
+    // View-mode safety: drop back to weekly view if the trip period is cleared.
+    const hasTripPeriod = tripDuration > 0;
+    useEffect(() => {
+        if (viewMode === 'trip' && !hasTripPeriod) setViewMode('week');
+    }, [viewMode, hasTripPeriod]);
+
+    // Click outside the trip-settings popover (backdrop, toggle button, or
+    // popover content) closes it. The backdrop's onClick handles most cases;
+    // this guards against e.g. ESC-equivalent stray clicks.
+    useEffect(() => {
+        if (!headerExpanded) return;
+        const handler = (e) => {
+            if (e.target.closest('.trip-settings-toggle-area')) return;
+            if (e.target.closest('.trip-settings-popover')) return;
+            setHeaderExpanded(false);
+        };
+        const t = setTimeout(() => document.addEventListener('mousedown', handler), 0);
+        return () => {
+            clearTimeout(t);
+            document.removeEventListener('mousedown', handler);
+        };
+    }, [headerExpanded]);
+
+    const tripSettingsPanel = (
+        <div className="trip-settings-panel">
                 <div className="trip-manager">
                     <div className="trip-manager-row">
                         <select
@@ -304,6 +407,94 @@ export default function AdminView({ dbData, refreshDb, selectedTripId: initialTr
                                 : '여행 기간을 설정하면 일정이 그 범위로 표시됩니다.'}
                         </span>
                     </div>
+                    <div className="trip-tag-row">
+                        <span className="trip-tag-row-label">
+                            <Tag size={14} /> 태그
+                        </span>
+                        <div className="trip-tag-list">
+                            {currentTags.map(tag => (
+                                <span key={tag.name} className="trip-tag-pill" style={{ borderColor: tag.color }}>
+                                    <button
+                                        type="button"
+                                        className="trip-tag-swatch"
+                                        style={{ background: tag.color }}
+                                        onClick={() => setColorPickerForTag(colorPickerForTag === tag.name ? null : tag.name)}
+                                        title="색상 변경"
+                                        aria-label={`${tag.name} 색상 변경`}
+                                    />
+                                    {colorPickerForTag === tag.name && (
+                                        <div className="trip-tag-color-popover">
+                                            {COLOR_PALETTE.map(c => (
+                                                <button
+                                                    key={c.value}
+                                                    type="button"
+                                                    className={`trip-tag-color-option${tag.color === c.value ? ' is-selected' : ''}`}
+                                                    style={{ background: c.value }}
+                                                    onClick={() => handleChangeTagColor(tag.name, c.value)}
+                                                    title={c.name}
+                                                    aria-label={c.name}
+                                                />
+                                            ))}
+                                        </div>
+                                    )}
+                                    {editingTag === tag.name ? (
+                                        <input
+                                            type="text"
+                                            value={editingTagValue}
+                                            onChange={(e) => setEditingTagValue(e.target.value)}
+                                            onBlur={() => {
+                                                handleRenameTag(tag.name, editingTagValue);
+                                                setEditingTag(null);
+                                            }}
+                                            onKeyDown={(e) => {
+                                                if (e.key === 'Enter') e.target.blur();
+                                                if (e.key === 'Escape') setEditingTag(null);
+                                            }}
+                                            autoFocus
+                                            className="trip-tag-rename-input"
+                                        />
+                                    ) : (
+                                        <button
+                                            type="button"
+                                            className="trip-tag-name"
+                                            onClick={() => {
+                                                setEditingTag(tag.name);
+                                                setEditingTagValue(tag.name);
+                                            }}
+                                            title="클릭하면 이름 수정"
+                                        >{tag.name}</button>
+                                    )}
+                                    <button
+                                        type="button"
+                                        className="trip-tag-remove"
+                                        onClick={() => handleRemoveTag(tag)}
+                                        title="삭제"
+                                    ><X size={12} /></button>
+                                </span>
+                            ))}
+                            {currentTags.length === 0 && (
+                                <button
+                                    type="button"
+                                    className="btn btn-ghost btn-sm"
+                                    onClick={handleSeedDefaultTags}
+                                >
+                                    기본 태그 추가 ({DEFAULT_TAGS.map(t => t.name).join(', ')})
+                                </button>
+                            )}
+                        </div>
+                        <form className="trip-tag-add" onSubmit={handleAddTag}>
+                            <input
+                                type="text"
+                                value={newTagInput}
+                                onChange={(e) => setNewTagInput(e.target.value)}
+                                placeholder="새 태그"
+                                className="trip-tag-input"
+                            />
+                            <button type="submit" className="btn btn-ghost btn-sm" title="추가">
+                                <Plus size={14} />
+                            </button>
+                        </form>
+                    </div>
                 </div>
 
                 <div className="admin-actions">
@@ -315,8 +506,11 @@ export default function AdminView({ dbData, refreshDb, selectedTripId: initialTr
                         <Download size={16} /> <span className="hidden-mobile">CSV 내보내기</span>
                     </button>
                 </div>
-            </div>
+        </div>
+    );
 
+    return (
+        <div className="admin-page">
             <div className="admin-content-layout">
                 <div className="calendar-integration-wrapper">
                     {selectedTripId ? (
@@ -326,15 +520,60 @@ export default function AdminView({ dbData, refreshDb, selectedTripId: initialTr
                             refreshDb={refreshDb}
                             onDragOverWishlist={setSidebarDragOver}
                             onUnschedule={onUnschedule}
+                            viewMode={viewMode}
                         />
                     ) : (
                         <div style={{ textAlign: 'center', padding: '3rem', color: 'var(--text-secondary)' }}>
-                            위에서 여행을 선택하거나 추가해 주세요.
+                            우측에서 여행을 선택하거나 추가해 주세요.
                         </div>
                     )}
                 </div>
 
-                <div ref={sidebarRef} className="candidates-sidebar">
+                <div className="right-column">
+                    <div className="trip-settings-toggle-area">
+                        <button
+                            type="button"
+                            className="btn btn-ghost btn-sm trip-settings-toggle"
+                            onClick={() => setHeaderExpanded(v => !v)}
+                            title={headerExpanded ? '여행 설정 접기' : '여행 설정 펼치기'}
+                        >
+                            {headerExpanded ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+                            <span>여행 설정</span>
+                        </button>
+                    </div>
+                    {headerExpanded && (
+                        <>
+                            <div
+                                className="trip-settings-backdrop"
+                                onClick={() => setHeaderExpanded(false)}
+                                aria-hidden="true"
+                            />
+                            <div className="trip-settings-popover" role="dialog" aria-label="여행 설정">
+                                {tripSettingsPanel}
+                            </div>
+                        </>
+                    )}
+
+                    <div className="view-mode-toggle">
+                        <button
+                            type="button"
+                            className={`btn btn-sm ${viewMode === 'week' ? 'btn-primary' : 'btn-ghost'}`}
+                            onClick={() => setViewMode('week')}
+                        >
+                            주간 보기
+                        </button>
+                        <button
+                            type="button"
+                            className={`btn btn-sm ${viewMode === 'trip' ? 'btn-primary' : 'btn-ghost'}`}
+                            onClick={() => hasTripPeriod && setViewMode('trip')}
+                            disabled={!hasTripPeriod}
+                            title={hasTripPeriod ? '' : '먼저 여행 기간을 설정하세요'}
+                        >
+                            여행 기간 {hasTripPeriod ? `(${tripDuration}일)` : ''}
+                        </button>
+                    </div>
+
+                    <div ref={sidebarRef} className="candidates-sidebar">
                     <div className="sidebar-header">
                         <MapPin size={18} />
                         <h3>가고 싶은 곳 (Wishlist)</h3>
@@ -403,6 +642,7 @@ export default function AdminView({ dbData, refreshDb, selectedTripId: initialTr
                             </div>
                         ))}
                     </div>
+                </div>
                 </div>
             </div>
         </div>
