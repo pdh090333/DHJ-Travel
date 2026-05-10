@@ -82,55 +82,68 @@
     border-color: var(--border-color) !important;
 }
 
+/* slotDuration is 1h, so this height is the per-hour row height.
+   18 hour rows × 1.4rem ≈ 22.4rem ≈ 360px — comfortably fits the
+   calendar area on every viewport. snapDuration='00:15:00' keeps
+   drag/select precision at 15 minutes even though the visual grid
+   only draws hour boundaries via table rows. */
 .fc .fc-timegrid-slot {
-    height: 0.3rem !important;
+    height: 1.4rem !important;
 }
 
-/* The major (label) slot rows expand to fit the text inside their
-   cushion. Default FC font / padding makes those rows ~16-20px each,
-   which alone is ~360px for 18 labels — bigger than our calendar
-   pane on small viewports. Tighten font and kill padding so the
-   label rows compress to ~11-12px and the entire 18-hour grid fits
-   without an internal scroll. */
 .fc-theme-standard .fc-timegrid-slot-label-cushion,
 .fc-theme-standard .fc-timegrid-axis-cushion {
-    font-size: 0.72rem !important;
+    font-size: 0.78rem !important;
     line-height: 1 !important;
-    padding: 0 0.35rem !important;
+    padding: 0 0.4rem !important;
 }
 
-/* Belt-and-suspenders: kill the time-grid's internal scroll so all 18
-   hours are always visible at once. */
+/* Visual 15-min subdivisions on body lanes: three faint lines at
+   25%, 50%, 75% of each 1-hour cell. Kept subtle so they read as
+   guides without competing with the hour boundaries. */
+.fc .fc-timegrid-col-frame .fc-timegrid-slot-lane {
+    background-image: linear-gradient(
+        to bottom,
+        transparent calc(25% - 0.5px),
+        var(--border-color) calc(25% - 0.5px),
+        var(--border-color) calc(25% + 0.5px),
+        transparent calc(25% + 0.5px),
+        transparent calc(50% - 0.5px),
+        var(--border-color) calc(50% - 0.5px),
+        var(--border-color) calc(50% + 0.5px),
+        transparent calc(50% + 0.5px),
+        transparent calc(75% - 0.5px),
+        var(--border-color) calc(75% - 0.5px),
+        var(--border-color) calc(75% + 0.5px),
+        transparent calc(75% + 0.5px),
+        transparent 100%
+    );
+    opacity: 1;
+}
+
+/* Belt-and-suspenders: keep the time-grid scroller from ever scrolling. */
 .fc .fc-timegrid .fc-scroller-liquid-absolute,
 .fc .fc-timegrid .fc-scroller {
     overflow: hidden !important;
 }
 
-/* Reduce the day-column header (요일 + 날짜 row) — saves another ~16px
-   of vertical space the time grid can use. */
+/* Reduce the day-column header (요일 + 날짜 row). */
 .fc .fc-col-header-cell-cushion {
     padding: 4px 4px !important;
 }
 
-/* Body lanes: dotted minor (15-min) lines so quarter-hour boundaries
-   read at a glance without competing with hour boundaries. */
+/* slotDuration is now 1h: there are no minor sub-rows, so the hour
+   labels naturally sit in the centre of their own row. No translateY
+   needed. The minor-slot rules below are kept as no-ops in case we
+   ever switch back to 15-min slots. */
 .fc-theme-standard .fc-timegrid-slot-lane.fc-timegrid-slot-minor {
     border-top-style: dotted !important;
     border-top-color: var(--border-color) !important;
     opacity: 0.5;
 }
 
-/* Time-axis (label column): hide the minor subdivision so the time
-   column renders as one continuous cell per hour, not 4 sub-cells. */
 .fc-theme-standard .fc-timegrid-slot-label.fc-timegrid-slot-minor {
     border-top: 0 !important;
-}
-
-/* Center the hour label vertically within its 4-slot (one hour) cluster.
-   The label cell is in the first minor slot at the top of the hour;
-   translateY pushes it visually 1.5 slots down so it lands in the middle. */
-.fc-theme-standard .fc-timegrid-slot-label-cushion {
-    transform: translateY(0.45rem);
 }
 
 .fc .fc-col-header-cell-cushion {

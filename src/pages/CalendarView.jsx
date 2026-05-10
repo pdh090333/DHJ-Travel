@@ -62,11 +62,11 @@ export default function CalendarView({ dbData, selectedTripId, refreshDb, onDrag
             start: currentTrip.startDate,
             end: addOneDay(currentTrip.endDate)
         },
-        headerToolbar: { left: '', center: 'title', right: '' }
+        headerToolbar: false
     } : {
         initialView: 'timeGridWeek',
         initialDate: firstDate,
-        headerToolbar: { left: 'prev,next today', center: 'title', right: 'timeGridWeek,timeGridDay' }
+        headerToolbar: { left: 'prev,next today', center: '', right: 'timeGridWeek,timeGridDay' }
     };
 
     const events = activities.map(act => {
@@ -319,7 +319,8 @@ export default function CalendarView({ dbData, selectedTripId, refreshDb, onDrag
                     allDaySlot={false}
                     slotMinTime="06:00:00"
                     slotMaxTime="24:00:00"
-                    slotDuration="00:15:00"
+                    slotDuration="01:00:00"
+                    snapDuration="00:15:00"
                     slotLabelInterval="01:00:00"
                     expandRows={true}
                     displayEventTime={false}
