@@ -91,15 +91,18 @@
 }
 
 /* slotDuration is 1h, so this controls the per-hour row height.
-   min-height (not height) lets expandRows={true} stretch the rows on
-   large monitors. The 4rem floor (18 rows × 64px = 1152px) is set well
-   above the usable slot area on a 1920x1080 laptop (~750px) so each
-   row is comfortably readable; the timegrid scrollbar covers ~5–6h.
-   A 27" QHD desktop (~1100px usable) sits just under the floor — its
-   auto-expand value (~60px) is clamped up to 64px, a small bump.
+   We use `height` (not `min-height`) because the slot is a <tr> and
+   table rows ignore min-height in most browsers — earlier attempts
+   with min-height looked unchanged because expandRows={true} was
+   silently governing the row size in both environments instead.
+   With `height: 4rem !important` (18 rows × 64px = 1152px) every
+   monitor renders a 64px row regardless of expandRows. A 1920x1080
+   laptop (~750px usable) shows a vertical scrollbar covering ~5–6h
+   while a 27" QHD desktop (~1100px) shows ~1h of scroll — the rows
+   are now uniformly readable instead of being squeezed on the laptop.
    snapDuration='00:15:00' keeps drag/select precision at 15 minutes. */
 .fc .fc-timegrid-slot {
-    min-height: 4rem !important;
+    height: 4rem !important;
 }
 
 .fc-theme-standard .fc-timegrid-slot-label-cushion,
