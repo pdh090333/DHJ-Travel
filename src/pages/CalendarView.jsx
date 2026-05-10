@@ -349,7 +349,8 @@ export default function CalendarView({ dbData, selectedTripId, refreshDb, onDrag
                     allDaySlot={false}
                     slotMinTime="06:00:00"
                     slotMaxTime="24:00:00"
-                    slotDuration="01:00:00"
+                    slotDuration="00:15:00"
+                    slotLabelInterval="01:00:00"
                     expandRows={true}
                     displayEventTime={false}
                     events={events} editable={true} selectable={true} selectMirror={true}

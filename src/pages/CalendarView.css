@@ -83,7 +83,15 @@
 }
 
 .fc .fc-timegrid-slot {
-    height: 1.6rem !important;
+    height: 0.5rem !important;
+}
+
+/* Make minor (15-min) lines lighter than hour lines so quarter-hour
+   subdivisions read at a glance without cluttering the view. */
+.fc-theme-standard .fc-timegrid-slot-minor {
+    border-top-style: dotted !important;
+    border-top-color: var(--border-color) !important;
+    opacity: 0.5;
 }
 
 .fc .fc-col-header-cell-cushion {
