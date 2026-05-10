@@ -37,6 +37,15 @@ export default function AdminView({ dbData, refreshDb, selectedTripId: initialTr
     const [editingTagValue, setEditingTagValue] = useState('');
     const [colorPickerForTag, setColorPickerForTag] = useState(null);
     const [headerExpanded, setHeaderExpanded] = useState(false);
+    const [viewMode, setViewMode] = useState(() => {
+        const tr = dbData.trips.find(t => t.id === (initialTripId || dbData.trips[0]?.id));
+        const sd = tr?.startDate || '';
+        const ed = tr?.endDate || '';
+        if (!sd || !ed) return 'week';
+        const [sy, sm, sdd] = sd.split('-').map(Number);
+        const [ey, em, edd] = ed.split('-').map(Number);
+        return Date.UTC(ey, em - 1, edd) >= Date.UTC(sy, sm - 1, sdd) ? 'trip' : 'week';
+    });
 
     // Was useState — but toggling state on every wishlist boundary crossing
     // forced an AdminView+CalendarView re-render mid-drag, which rebuilt
@@ -321,30 +330,28 @@ export default function AdminView({ dbData, refreshDb, selectedTripId: initialTr
         await persistTags([...DEFAULT_TAGS]);
     };
 
-    return (
-        <div className="admin-page">
-            <div className="admin-header">
-                <div className="admin-header-bar">
-                    <span className="admin-header-summary">
-                        <strong>{currentTrip?.title || '여행 없음'}</strong>
-                        {tripDuration > 0 && (
-                            <span className="admin-header-summary-period">
-                                {' · '}총 {tripDuration}일 · {formatTripDateLabel(tripStartDate)} ~ {formatTripDateLabel(tripEndDate)}
-                            </span>
-                        )}
-                    </span>
-                    <button
-                        type="button"
-                        className="btn btn-ghost btn-sm"
-                        onClick={() => setHeaderExpanded(v => !v)}
-                        title={headerExpanded ? '여행 설정 접기' : '여행 설정 펼치기'}
-                    >
-                        {headerExpanded ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
-                        <span className="hidden-mobile">{headerExpanded ? '접기' : '여행 설정'}</span>
-                    </button>
-                </div>
-                {headerExpanded && (
-                <div className="admin-header-expanded">
+    // View-mode safety: drop back to weekly view if the trip period is cleared.
+    const hasTripPeriod = tripDuration > 0;
+    useEffect(() => {
+        if (viewMode === 'trip' && !hasTripPeriod) setViewMode('week');
+    }, [viewMode, hasTripPeriod]);
+
+    // Click outside the trip-settings popover closes it.
+    useEffect(() => {
+        if (!headerExpanded) return;
+        const handler = (e) => {
+            if (e.target.closest('.trip-settings-toggle-area')) return;
+            setHeaderExpanded(false);
+        };
+        const t = setTimeout(() => document.addEventListener('mousedown', handler), 0);
+        return () => {
+            clearTimeout(t);
+            document.removeEventListener('mousedown', handler);
+        };
+    }, [headerExpanded]);
+
+    const tripSettingsPanel = (
+        <div className="trip-settings-panel">
                 <div className="trip-manager">
                     <div className="trip-manager-row">
                         <select
@@ -496,10 +503,11 @@ export default function AdminView({ dbData, refreshDb, selectedTripId: initialTr
                         <Download size={16} /> <span className="hidden-mobile">CSV 내보내기</span>
                     </button>
                 </div>
-                </div>
-                )}
-            </div>
+        </div>
+    );
 
+    return (
+        <div className="admin-page">
             <div className="admin-content-layout">
                 <div className="calendar-integration-wrapper">
                     {selectedTripId ? (
@@ -509,15 +517,53 @@ export default function AdminView({ dbData, refreshDb, selectedTripId: initialTr
                             refreshDb={refreshDb}
                             onDragOverWishlist={setSidebarDragOver}
                             onUnschedule={onUnschedule}
+                            viewMode={viewMode}
                         />
                     ) : (
                         <div style={{ textAlign: 'center', padding: '3rem', color: 'var(--text-secondary)' }}>
-                            위에서 여행을 선택하거나 추가해 주세요.
+                            우측에서 여행을 선택하거나 추가해 주세요.
                         </div>
                     )}
                 </div>
 
-                <div ref={sidebarRef} className="candidates-sidebar">
+                <div className="right-column">
+                    <div className="trip-settings-toggle-area">
+                        <button
+                            type="button"
+                            className="btn btn-ghost btn-sm trip-settings-toggle"
+                            onClick={() => setHeaderExpanded(v => !v)}
+                            title={headerExpanded ? '여행 설정 접기' : '여행 설정 펼치기'}
+                        >
+                            {headerExpanded ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+                            <span>여행 설정</span>
+                        </button>
+                        {headerExpanded && (
+                            <div className="trip-settings-popover">
+                                {tripSettingsPanel}
+                            </div>
+                        )}
+                    </div>
+
+                    <div className="view-mode-toggle">
+                        <button
+                            type="button"
+                            className={`btn btn-sm ${viewMode === 'week' ? 'btn-primary' : 'btn-ghost'}`}
+                            onClick={() => setViewMode('week')}
+                        >
+                            주간 보기
+                        </button>
+                        <button
+                            type="button"
+                            className={`btn btn-sm ${viewMode === 'trip' ? 'btn-primary' : 'btn-ghost'}`}
+                            onClick={() => hasTripPeriod && setViewMode('trip')}
+                            disabled={!hasTripPeriod}
+                            title={hasTripPeriod ? '' : '먼저 여행 기간을 설정하세요'}
+                        >
+                            여행 기간 {hasTripPeriod ? `(${tripDuration}일)` : ''}
+                        </button>
+                    </div>
+
+                    <div ref={sidebarRef} className="candidates-sidebar">
                     <div className="sidebar-header">
                         <MapPin size={18} />
                         <h3>가고 싶은 곳 (Wishlist)</h3>
@@ -586,6 +632,7 @@ export default function AdminView({ dbData, refreshDb, selectedTripId: initialTr
                             </div>
                         ))}
                     </div>
+                </div>
                 </div>
             </div>
         </div>

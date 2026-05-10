@@ -24,17 +24,10 @@ const addOneDay = (dateStr) => {
     return `${next.getUTCFullYear()}-${String(next.getUTCMonth() + 1).padStart(2, '0')}-${String(next.getUTCDate()).padStart(2, '0')}`;
 };
 
-export default function CalendarView({ dbData, selectedTripId, refreshDb, onDragOverWishlist, onUnschedule }) {
+export default function CalendarView({ dbData, selectedTripId, refreshDb, onDragOverWishlist, onUnschedule, viewMode = 'week' }) {
     useEffect(() => { console.log('[Travel]', BUILD_TAG); }, []);
 
     const [selectedActivity, setSelectedActivity] = useState(null);
-    // Default to 'trip' (여행 기간) when the trip has dates set,
-    // otherwise fall back to 'week'. Lazy init avoids a 'week' → 'trip'
-    // flicker on mount.
-    const [viewMode, setViewMode] = useState(() => {
-        const tr = dbData.trips.find(t => t.id === selectedTripId);
-        return computeTripDuration(tr?.startDate, tr?.endDate) > 0 ? 'trip' : 'week';
-    });
     const wishlistRectRef = useRef(null);
     const wasInsideWishlistRef = useRef(false);
     const ghostElRef = useRef(null);
@@ -50,10 +43,6 @@ export default function CalendarView({ dbData, selectedTripId, refreshDb, onDrag
 
     const tripDuration = computeTripDuration(currentTrip?.startDate, currentTrip?.endDate);
     const hasTripPeriod = tripDuration > 0;
-
-    useEffect(() => {
-        if (viewMode === 'trip' && !hasTripPeriod) setViewMode('week');
-    }, [viewMode, hasTripPeriod]);
 
     const firstDate = currentTrip?.startDate
         || activities.map(a => a.date).filter(Boolean).sort()[0]
@@ -322,25 +311,6 @@ export default function CalendarView({ dbData, selectedTripId, refreshDb, onDrag
 
     return (
         <div className="calendar-page">
-            <div className="calendar-toolbar">
-                <div className="view-mode-toggle">
-                    <button
-                        className={`btn btn-sm ${viewMode === 'week' ? 'btn-primary' : 'btn-ghost'}`}
-                        onClick={() => setViewMode('week')}
-                    >
-                        주간 보기
-                    </button>
-                    <button
-                        className={`btn btn-sm ${viewMode === 'trip' ? 'btn-primary' : 'btn-ghost'}`}
-                        onClick={() => hasTripPeriod && setViewMode('trip')}
-                        disabled={!hasTripPeriod}
-                        title={hasTripPeriod ? '' : '먼저 여행 기간을 설정하세요'}
-                    >
-                        여행 기간 {hasTripPeriod ? `(${tripDuration}일)` : ''}
-                    </button>
-                </div>
-                <p className="calendar-instructions">💡 일정을 드래그하여 예약하거나 후보지로 옮기세요!</p>
-            </div>
             <div className="calendar-container">
                 <FullCalendar
                     key={`${selectedTripId}-${firstDate}-${viewMode}-${tripDuration}`}
