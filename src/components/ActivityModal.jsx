@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Star, Info } from 'lucide-react';
+import { Star, Info, ChevronDown, ChevronUp } from 'lucide-react';
 import './ActivityModal.css';
 
 export default function ActivityModal({ activity, onClose, onSave, onDelete, onMoveToCandidates, availableTags = [] }) {
@@ -18,6 +18,11 @@ export default function ActivityModal({ activity, onClose, onSave, onDelete, onM
         tag: ''
     });
 
+    // Image URL and Google review link are folded behind a toggle since
+    // most activities don't use them. Auto-expand when editing an
+    // activity that already has either filled in.
+    const [showExtras, setShowExtras] = useState(false);
+
     useEffect(() => {
         if (activity) {
             setFormData({
@@ -32,6 +37,7 @@ export default function ActivityModal({ activity, onClose, onSave, onDelete, onM
                 reviewUrl: activity.reviewUrl || '',
                 tag: activity.tag || ''
             });
+            setShowExtras(!!(activity.imageUrl || activity.reviewUrl));
         }
     }, [activity]);
 
@@ -80,7 +86,12 @@ export default function ActivityModal({ activity, onClose, onSave, onDelete, onM
 
     const handleSubmit = (e) => {
         e.preventDefault();
-        onSave(formData);
+        // The arrival field used to be a separate input, but was unified
+        // with title (same content in practice). We keep `arrival` in the
+        // saved record so ItineraryView's destination label, the
+        // predecessor chain (prev.arrival → next departure), and CSV
+        // export all keep working without changes.
+        onSave({ ...formData, arrival: formData.title });
     };
 
     if (!activity) return null;
@@ -152,17 +163,12 @@ export default function ActivityModal({ activity, onClose, onSave, onDelete, onM
                     */}
 
                     <div className="form-group">
-                        <label>도착지 이름</label>
-                        <input type="text" name="arrival" value={formData.arrival} onChange={handleChange} placeholder="나리타공항" />
-                    </div>
-
-                    <div className="form-group">
                         <label>
-                            도착지 구글맵 링크
+                            구글맵 링크
                             <span
                                 className="form-info-icon"
-                                title="이 도착지가 다음 일정의 출발지로 자동 사용되어 길찾기됩니다. 출발지를 따로 입력하지 않습니다."
-                                aria-label="이 도착지가 다음 일정의 출발지로 자동 사용되어 길찾기됩니다."
+                                title="이 일정 장소가 다음 일정의 출발지로 자동 사용되어 길찾기됩니다. 출발지를 따로 입력하지 않습니다."
+                                aria-label="이 일정 장소가 다음 일정의 출발지로 자동 사용되어 길찾기됩니다."
                             >
                                 <Info size={14} />
                             </span>
@@ -171,24 +177,38 @@ export default function ActivityModal({ activity, onClose, onSave, onDelete, onM
                     </div>
 
                     <div className="form-group">
-                        <label>이미지 URL (참고 사진)</label>
-                        <input type="url" name="imageUrl" value={formData.imageUrl} onChange={handleChange} placeholder="https://... (이미지 주소)" />
-                        {formData.imageUrl && (
-                            <div className="modal-image-preview">
-                                <img src={formData.imageUrl} alt="Preview" />
-                            </div>
-                        )}
-                    </div>
-
-                    <div className="form-group">
-                        <label>구글 맵 리뷰 링크 (선택)</label>
-                        <input type="url" name="reviewUrl" value={formData.reviewUrl} onChange={handleChange} placeholder="https://maps.app.goo.gl/..." />
-                    </div>
-
-                    <div className="form-group">
                         <label>메모 (Notes)</label>
-                        <textarea name="notes" value={formData.notes} onChange={handleChange} placeholder="예약 번호, 준비물 등" rows={3}></textarea>
+                        <textarea name="notes" value={formData.notes} onChange={handleChange} placeholder="예약 번호, 준비물 등" rows={6}></textarea>
                     </div>
+
+                    <button
+                        type="button"
+                        className="btn btn-ghost btn-sm form-extras-button"
+                        onClick={() => setShowExtras(v => !v)}
+                        aria-expanded={showExtras}
+                    >
+                        {showExtras ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+                        <span>추가 정보 (이미지 / 리뷰 링크)</span>
+                    </button>
+
+                    {showExtras && (
+                        <>
+                            <div className="form-group">
+                                <label>이미지 URL (참고 사진)</label>
+                                <input type="url" name="imageUrl" value={formData.imageUrl} onChange={handleChange} placeholder="https://... (이미지 주소)" />
+                                {formData.imageUrl && (
+                                    <div className="modal-image-preview">
+                                        <img src={formData.imageUrl} alt="Preview" />
+                                    </div>
+                                )}
+                            </div>
+
+                            <div className="form-group">
+                                <label>구글 맵 리뷰 링크</label>
+                                <input type="url" name="reviewUrl" value={formData.reviewUrl} onChange={handleChange} placeholder="https://maps.app.goo.gl/..." />
+                            </div>
+                        </>
+                    )}
 
                     <div className="modal-actions">
                         {!activity.id.startsWith('new_') && (

@@ -5,6 +5,11 @@
 // Activity = { id, tripId, date, startTime, endTime, title, departure, arrival, departureUrl, arrivalUrl, notes, imageUrl, reviewUrl, tag }
 //   - `departure`/`departureUrl` no longer collected via UI; existing values are still
 //     displayed in itinerary view. Color is derived from the tag, not stored on the activity.
+//   - `arrival` is no longer a separate input — ActivityModal sets it to `title` on save.
+//     ItineraryView still reads `arrival` for the destination label, the predecessor chain
+//     (prev.arrival → next departure), and CSV export still ships an `arrival` column for
+//     backward compatibility. Older records where arrival ≠ title keep their value until
+//     the activity is edited.
 // Candidate = { id, tripId, title, url, notes, imageUrl }
 
 export const COLOR_PALETTE = [
