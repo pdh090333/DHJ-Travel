@@ -36,7 +36,10 @@ export default function CalendarView({ dbData, selectedTripId, refreshDb, onDrag
     const upListenerRef = useRef(null);
     const lastPointerRef = useRef({ x: 0, y: 0 });
 
-    const activities = dbData.activities.filter(a => a.tripId === selectedTripId);
+    const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
+    const activities = dbData.activities
+        .filter(a => a.tripId === selectedTripId)
+        .filter(a => !a.date || ISO_DATE.test(a.date));
     const currentTrip = dbData.trips.find(t => t.id === selectedTripId);
 
     const tripDuration = computeTripDuration(currentTrip?.startDate, currentTrip?.endDate);

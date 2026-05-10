@@ -49,12 +49,22 @@ function App() {
     initApp();
   }, [user]);
 
+  const reportBrokenActivities = (activities) => {
+    const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
+    const broken = activities.filter(a => a.date && !ISO_DATE.test(a.date));
+    if (broken.length > 0) {
+      console.warn(`[Travel] ${broken.length}개의 활동에 잘못된 date 값이 있습니다 (Firebase Console에서 삭제하세요):`);
+      broken.forEach(a => console.warn(`  • id=${a.id}  title="${a.title}"  date="${a.date}"`));
+    }
+  };
+
   const initApp = async () => {
     setLoading(true);
     try {
       await ensureDefaultTrip();
       const data = await loadDB();
       setDbData(data);
+      reportBrokenActivities(data.activities);
     } catch (err) {
       console.error('Failed to load data from Firebase:', err);
     } finally {
@@ -66,6 +76,7 @@ function App() {
     try {
       const data = await loadDB();
       setDbData(data);
+      reportBrokenActivities(data.activities);
     } catch (err) {
       console.error('Failed to refresh data:', err);
     }

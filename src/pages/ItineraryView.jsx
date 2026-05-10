@@ -38,8 +38,11 @@ export default function ItineraryView({ dbData, selectedTripId }) {
     const currentTrip = dbData.trips.find(t => t.id === selectedTripId);
     const tripActivities = dbData.activities.filter(a => a.tripId === selectedTripId);
 
+    // Filter to ISO YYYY-MM-DD; fragile CSV import can leave non-date
+    // strings (e.g. URLs) in `date`.
+    const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
     const tripDates = getDateRange(currentTrip?.startDate, currentTrip?.endDate);
-    const activityDates = [...new Set(tripActivities.map(a => a.date).filter(Boolean))].sort();
+    const activityDates = [...new Set(tripActivities.map(a => a.date).filter(d => d && ISO_DATE.test(d)))].sort();
     const allDates = tripDates.length > 0 ? tripDates : activityDates;
 
     const [selectedDate, setSelectedDate] = useState('all');
