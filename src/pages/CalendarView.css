@@ -83,8 +83,7 @@
 }
 
 .fc .fc-timegrid-slot {
-    height: 2.5rem !important;
-    /* Taller slots for better touch targets */
+    height: 1.6rem !important;
 }
 
 .fc .fc-col-header-cell-cushion {

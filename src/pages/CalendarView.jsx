@@ -347,6 +347,11 @@ export default function CalendarView({ dbData, selectedTripId, refreshDb, onDrag
                     plugins={[timeGridPlugin, interactionPlugin]}
                     {...calendarConfig}
                     allDaySlot={false}
+                    slotMinTime="06:00:00"
+                    slotMaxTime="24:00:00"
+                    slotDuration="01:00:00"
+                    expandRows={true}
+                    displayEventTime={false}
                     events={events} editable={true} selectable={true} selectMirror={true}
                     eventChange={handleEventChange} eventClick={handleEventClick} select={handleDateSelect}
                     eventReceive={handleEventReceive} eventDragStop={handleEventDragStop}

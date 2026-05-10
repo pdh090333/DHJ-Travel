@@ -140,7 +140,7 @@
 }
 
 .candidates-sidebar {
-    width: 320px;
+    width: 220px;
     background: var(--panel-bg);
     border: 1px solid var(--border-color);
     border-radius: var(--radius-lg);
