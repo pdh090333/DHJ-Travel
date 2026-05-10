@@ -90,13 +90,16 @@
     --fc-border-color: var(--border-color);
 }
 
-/* slotDuration is 1h, so this height is the per-hour row height.
-   18 hour rows × 1.4rem ≈ 22.4rem ≈ 360px — comfortably fits the
-   calendar area on every viewport. snapDuration='00:15:00' keeps
-   drag/select precision at 15 minutes even though the visual grid
-   only draws hour boundaries via table rows. */
+/* slotDuration is 1h, so this controls the per-hour row height.
+   min-height (not height) lets expandRows={true} stretch the rows on
+   large monitors. The 2.5rem floor (18 rows × 40px = 720px) is sized
+   so a 1920x1080 laptop with Chrome's tabs+omnibox+bookmarks bar
+   (~725px usable slot area) sits right at the edge — scrollbar appears
+   only when the window shrinks below that, while a 27" QHD desktop
+   stretches each row to ~60px instead. snapDuration='00:15:00' keeps
+   drag/select precision at 15 minutes. */
 .fc .fc-timegrid-slot {
-    height: 1.4rem !important;
+    min-height: 2.5rem !important;
 }
 
 .fc-theme-standard .fc-timegrid-slot-label-cushion,
@@ -127,12 +130,6 @@
         transparent 100%
     );
     opacity: 1;
-}
-
-/* Belt-and-suspenders: keep the time-grid scroller from ever scrolling. */
-.fc .fc-timegrid .fc-scroller-liquid-absolute,
-.fc .fc-timegrid .fc-scroller {
-    overflow: hidden !important;
 }
 
 /* Reduce the day-column header (요일 + 날짜 row). */
