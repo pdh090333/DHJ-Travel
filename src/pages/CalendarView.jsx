@@ -3,7 +3,7 @@ import FullCalendar from '@fullcalendar/react';
 import timeGridPlugin from '@fullcalendar/timegrid';
 import interactionPlugin from '@fullcalendar/interaction';
 import ActivityModal from '../components/ActivityModal';
-import { saveActivity, deleteActivity, generateId } from '../db';
+import { saveActivity, deleteActivity, generateId, normalizeTags, resolveActivityColor } from '../db';
 import './CalendarView.css';
 
 const BUILD_TAG = 'wishlist-drag v18 — hands off the mirror, ghost-only feedback';
@@ -90,7 +90,7 @@ export default function CalendarView({ dbData, selectedTripId, refreshDb, onDrag
             endStr = startObj.toISOString().slice(0, 16) + ':00';
         }
 
-        const color = act.color || 'var(--primary)';
+        const color = resolveActivityColor(act, currentTrip?.tags) || 'var(--primary)';
         const baseTitle = act.title || '새 일정';
         const titleWithTag = act.tag ? `[${act.tag}] ${baseTitle}` : baseTitle;
         return {
@@ -359,7 +359,7 @@ export default function CalendarView({ dbData, selectedTripId, refreshDb, onDrag
                     activity={selectedActivity} onClose={() => setSelectedActivity(null)}
                     onSave={handleSaveModal} onDelete={handleDeleteModal}
                     onMoveToCandidates={() => onUnschedule(selectedTripId, selectedActivity.id)}
-                    availableTags={currentTrip?.tags || []}
+                    availableTags={normalizeTags(currentTrip?.tags)}
                 />
             )}
         </div>

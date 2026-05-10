@@ -158,3 +158,19 @@
     border-color: var(--text-primary);
     box-shadow: 0 0 0 2px var(--panel-bg), 0 0 0 4px var(--text-primary);
 }
+
+.form-info-icon {
+    display: inline-flex;
+    align-items: center;
+    margin-left: 0.35rem;
+    color: var(--text-secondary);
+    opacity: 0.6;
+    cursor: help;
+    transition: opacity 0.15s ease, color 0.15s ease;
+    vertical-align: middle;
+}
+
+.form-info-icon:hover {
+    opacity: 1;
+    color: var(--primary);
+}

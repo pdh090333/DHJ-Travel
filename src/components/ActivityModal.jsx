@@ -1,18 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { Star } from 'lucide-react';
+import { Star, Info } from 'lucide-react';
 import './ActivityModal.css';
-
-export const DEFAULT_ACTIVITY_COLOR = '#4F46E5';
-
-export const COLOR_PALETTE = [
-    { name: '인디고', value: '#4F46E5' },
-    { name: '로즈', value: '#E11D48' },
-    { name: '앰버', value: '#F59E0B' },
-    { name: '에메랄드', value: '#10B981' },
-    { name: '스카이', value: '#0EA5E9' },
-    { name: '바이올렛', value: '#8B5CF6' },
-    { name: '슬레이트', value: '#64748B' }
-];
 
 export default function ActivityModal({ activity, onClose, onSave, onDelete, onMoveToCandidates, availableTags = [] }) {
     const [formData, setFormData] = useState({
@@ -27,7 +15,6 @@ export default function ActivityModal({ activity, onClose, onSave, onDelete, onM
         notes: '',
         imageUrl: '',
         reviewUrl: '',
-        color: DEFAULT_ACTIVITY_COLOR,
         tag: ''
     });
 
@@ -43,18 +30,19 @@ export default function ActivityModal({ activity, onClose, onSave, onDelete, onM
                 notes: activity.notes || '',
                 imageUrl: activity.imageUrl || '',
                 reviewUrl: activity.reviewUrl || '',
-                color: activity.color || DEFAULT_ACTIVITY_COLOR,
                 tag: activity.tag || ''
             });
         }
     }, [activity]);
 
+    // availableTags arrives as [{name, color}, ...]. The dropdown only needs names.
+    const tagNames = availableTags.map(t => t?.name || t);
     // If the saved tag is no longer in the trip's tag list (e.g. it was
     // deleted from the taxonomy), keep it as an option so the dropdown
     // doesn't silently drop the value.
-    const tagOptions = formData.tag && !availableTags.includes(formData.tag)
-        ? [...availableTags, formData.tag]
-        : availableTags;
+    const tagOptions = formData.tag && !tagNames.includes(formData.tag)
+        ? [...tagNames, formData.tag]
+        : tagNames;
 
     const extractDirectImageUrl = (url) => {
         if (!url) return '';
@@ -136,26 +124,50 @@ export default function ActivityModal({ activity, onClose, onSave, onDelete, onM
                         </div>
                     </div>
 
-                    <div className="form-row">
-                        <div className="form-group">
-                            <label>출발지 이름</label>
-                            <input type="text" name="departure" value={formData.departure} onChange={handleChange} placeholder="인천공항" />
-                        </div>
-                        <div className="form-group">
-                            <label>도착지 이름</label>
-                            <input type="text" name="arrival" value={formData.arrival} onChange={handleChange} placeholder="나리타공항" />
-                        </div>
+                    {/*
+                      출발지 입력 (이름 + 구글맵 링크) — 사용 중지됨.
+                      직전 일정의 도착지를 자동으로 출발지로 이어붙여 길찾기에 사용합니다.
+                      복원 시 아래 두 form-row 주석 해제 + (선택) 도착지 ⓘ 안내 문구 조정.
+
+                      <div className="form-row">
+                          <div className="form-group">
+                              <label>출발지 이름</label>
+                              <input type="text" name="departure" value={formData.departure} onChange={handleChange} placeholder="인천공항" />
+                          </div>
+                          <div className="form-group">
+                              <label>도착지 이름</label>
+                              <input type="text" name="arrival" value={formData.arrival} onChange={handleChange} placeholder="나리타공항" />
+                          </div>
+                      </div>
+                      <div className="form-row">
+                          <div className="form-group">
+                              <label>출발지 구글맵 링크</label>
+                              <input type="url" name="departureUrl" value={formData.departureUrl} onChange={handleChange} placeholder="https://goo.gl/maps/..." />
+                          </div>
+                          <div className="form-group">
+                              <label>도착지 구글맵 링크</label>
+                              <input type="url" name="arrivalUrl" value={formData.arrivalUrl} onChange={handleChange} placeholder="https://goo.gl/maps/..." />
+                          </div>
+                      </div>
+                    */}
+
+                    <div className="form-group">
+                        <label>
+                            도착지 이름
+                            <span
+                                className="form-info-icon"
+                                title="이 도착지가 다음 일정의 출발지로 자동 사용되어 길찾기됩니다. 출발지를 따로 입력하지 않습니다."
+                                aria-label="이 도착지가 다음 일정의 출발지로 자동 사용되어 길찾기됩니다."
+                            >
+                                <Info size={14} />
+                            </span>
+                        </label>
+                        <input type="text" name="arrival" value={formData.arrival} onChange={handleChange} placeholder="나리타공항" />
                     </div>
 
-                    <div className="form-row">
-                        <div className="form-group">
-                            <label>출발지 구글맵 링크</label>
-                            <input type="url" name="departureUrl" value={formData.departureUrl} onChange={handleChange} placeholder="https://goo.gl/maps/..." />
-                        </div>
-                        <div className="form-group">
-                            <label>도착지 구글맵 링크</label>
-                            <input type="url" name="arrivalUrl" value={formData.arrivalUrl} onChange={handleChange} placeholder="https://goo.gl/maps/..." />
-                        </div>
+                    <div className="form-group">
+                        <label>도착지 구글맵 링크</label>
+                        <input type="url" name="arrivalUrl" value={formData.arrivalUrl} onChange={handleChange} placeholder="https://goo.gl/maps/..." />
                     </div>
 
                     <div className="form-group">
@@ -171,23 +183,6 @@ export default function ActivityModal({ activity, onClose, onSave, onDelete, onM
                     <div className="form-group">
                         <label>구글 맵 리뷰 링크 (선택)</label>
                         <input type="url" name="reviewUrl" value={formData.reviewUrl} onChange={handleChange} placeholder="https://maps.app.goo.gl/..." />
-                    </div>
-
-                    <div className="form-group">
-                        <label>색상</label>
-                        <div className="color-palette">
-                            {COLOR_PALETTE.map(c => (
-                                <button
-                                    key={c.value}
-                                    type="button"
-                                    className={`color-swatch${formData.color === c.value ? ' is-selected' : ''}`}
-                                    style={{ background: c.value }}
-                                    onClick={() => setFormData(prev => ({ ...prev, color: c.value }))}
-                                    title={c.name}
-                                    aria-label={`색상: ${c.name}`}
-                                />
-                            ))}
-                        </div>
                     </div>
 
                     <div className="form-group">

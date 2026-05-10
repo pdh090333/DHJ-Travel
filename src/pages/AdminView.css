@@ -326,14 +326,63 @@
 }
 
 .trip-tag-pill {
+    position: relative;
     display: inline-flex;
     align-items: center;
-    gap: 0.25rem;
-    padding: 0.2rem 0.4rem 0.2rem 0.6rem;
+    gap: 0.35rem;
+    padding: 0.2rem 0.4rem 0.2rem 0.4rem;
     background: var(--bg-color);
     border: 1px solid var(--border-color);
+    border-left-width: 4px;
     border-radius: 999px;
     font-size: 0.85rem;
+}
+
+.trip-tag-swatch {
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    border: none;
+    padding: 0;
+    cursor: pointer;
+    transition: transform 0.15s ease;
+}
+
+.trip-tag-swatch:hover {
+    transform: scale(1.15);
+}
+
+.trip-tag-color-popover {
+    position: absolute;
+    top: calc(100% + 4px);
+    left: 0;
+    z-index: 20;
+    display: flex;
+    gap: 0.25rem;
+    padding: 0.4rem;
+    background: var(--panel-bg);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-md);
+    box-shadow: var(--shadow-md);
+}
+
+.trip-tag-color-option {
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    border: 2px solid transparent;
+    padding: 0;
+    cursor: pointer;
+    transition: transform 0.15s ease;
+}
+
+.trip-tag-color-option:hover {
+    transform: scale(1.15);
+}
+
+.trip-tag-color-option.is-selected {
+    border-color: var(--text-primary);
+    box-shadow: 0 0 0 2px var(--panel-bg);
 }
 
 .trip-tag-name {

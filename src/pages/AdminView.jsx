@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { replaceTripActivities, exportToCSV, parseCSV, generateId, saveTrip, deleteTrip, saveCandidate, deleteCandidate, saveActivity, DEFAULT_TAGS } from '../db';
+import { replaceTripActivities, exportToCSV, parseCSV, generateId, saveTrip, deleteTrip, saveCandidate, deleteCandidate, saveActivity, DEFAULT_TAGS, COLOR_PALETTE, DEFAULT_TAG_COLOR, normalizeTags } from '../db';
 import { Download, Upload, Plus, Trash2, Save, Trash, MapPin, Link as LinkIcon, ExternalLink, Tag, X } from 'lucide-react';
 import { Draggable } from '@fullcalendar/interaction';
 import CalendarView from './CalendarView';
@@ -35,6 +35,7 @@ export default function AdminView({ dbData, refreshDb, selectedTripId: initialTr
     const [newTagInput, setNewTagInput] = useState('');
     const [editingTag, setEditingTag] = useState(null);
     const [editingTagValue, setEditingTagValue] = useState('');
+    const [colorPickerForTag, setColorPickerForTag] = useState(null);
 
     // Was useState — but toggling state on every wishlist boundary crossing
     // forced an AdminView+CalendarView re-render mid-drag, which rebuilt
@@ -254,7 +255,7 @@ export default function AdminView({ dbData, refreshDb, selectedTripId: initialTr
 
     // ─── Tag management ─────────────────────────────────
     const currentTrip = dbData.trips.find(t => t.id === selectedTripId);
-    const currentTags = currentTrip?.tags || [];
+    const currentTags = normalizeTags(currentTrip?.tags);
 
     const persistTags = async (newTags) => {
         if (!currentTrip) return;
@@ -272,27 +273,27 @@ export default function AdminView({ dbData, refreshDb, selectedTripId: initialTr
         e.preventDefault();
         const t = newTagInput.trim();
         if (!t) return;
-        if (currentTags.includes(t)) {
+        if (currentTags.some(x => x.name === t)) {
             setNewTagInput('');
             return;
         }
-        await persistTags([...currentTags, t]);
+        await persistTags([...currentTags, { name: t, color: DEFAULT_TAG_COLOR }]);
         setNewTagInput('');
     };
 
     const handleRemoveTag = async (tag) => {
-        if (!confirm(`"${tag}" 태그를 삭제하시겠습니까? (이 태그가 적용된 활동은 표시 이름만 남습니다.)`)) return;
-        await persistTags(currentTags.filter(t => t !== tag));
+        if (!confirm(`"${tag.name}" 태그를 삭제하시겠습니까? (이 태그가 적용된 활동은 표시 이름만 남습니다.)`)) return;
+        await persistTags(currentTags.filter(t => t.name !== tag.name));
     };
 
     const handleRenameTag = async (oldName, newName) => {
         const trimmed = newName.trim();
         if (!trimmed || trimmed === oldName) return;
-        if (currentTags.includes(trimmed)) {
+        if (currentTags.some(t => t.name === trimmed)) {
             alert(`"${trimmed}" 태그가 이미 있습니다.`);
             return;
         }
-        const newTags = currentTags.map(t => t === oldName ? trimmed : t);
+        const newTags = currentTags.map(t => t.name === oldName ? { ...t, name: trimmed } : t);
         const affected = dbData.activities.filter(
             a => a.tripId === selectedTripId && a.tag === oldName
         );
@@ -307,6 +308,12 @@ export default function AdminView({ dbData, refreshDb, selectedTripId: initialTr
             ...affected.map(a => saveActivity({ ...a, tag: trimmed }))
         ]);
         await refreshDb();
+    };
+
+    const handleChangeTagColor = async (tagName, color) => {
+        const newTags = currentTags.map(t => t.name === tagName ? { ...t, color } : t);
+        await persistTags(newTags);
+        setColorPickerForTag(null);
     };
 
     const handleSeedDefaultTags = async () => {
@@ -374,14 +381,37 @@ export default function AdminView({ dbData, refreshDb, selectedTripId: initialTr
                         </span>
                         <div className="trip-tag-list">
                             {currentTags.map(tag => (
-                                <span key={tag} className="trip-tag-pill">
-                                    {editingTag === tag ? (
+                                <span key={tag.name} className="trip-tag-pill" style={{ borderColor: tag.color }}>
+                                    <button
+                                        type="button"
+                                        className="trip-tag-swatch"
+                                        style={{ background: tag.color }}
+                                        onClick={() => setColorPickerForTag(colorPickerForTag === tag.name ? null : tag.name)}
+                                        title="색상 변경"
+                                        aria-label={`${tag.name} 색상 변경`}
+                                    />
+                                    {colorPickerForTag === tag.name && (
+                                        <div className="trip-tag-color-popover">
+                                            {COLOR_PALETTE.map(c => (
+                                                <button
+                                                    key={c.value}
+                                                    type="button"
+                                                    className={`trip-tag-color-option${tag.color === c.value ? ' is-selected' : ''}`}
+                                                    style={{ background: c.value }}
+                                                    onClick={() => handleChangeTagColor(tag.name, c.value)}
+                                                    title={c.name}
+                                                    aria-label={c.name}
+                                                />
+                                            ))}
+                                        </div>
+                                    )}
+                                    {editingTag === tag.name ? (
                                         <input
                                             type="text"
                                             value={editingTagValue}
                                             onChange={(e) => setEditingTagValue(e.target.value)}
                                             onBlur={() => {
-                                                handleRenameTag(tag, editingTagValue);
+                                                handleRenameTag(tag.name, editingTagValue);
                                                 setEditingTag(null);
                                             }}
                                             onKeyDown={(e) => {
@@ -396,11 +426,11 @@ export default function AdminView({ dbData, refreshDb, selectedTripId: initialTr
                                             type="button"
                                             className="trip-tag-name"
                                             onClick={() => {
-                                                setEditingTag(tag);
-                                                setEditingTagValue(tag);
+                                                setEditingTag(tag.name);
+                                                setEditingTagValue(tag.name);
                                             }}
                                             title="클릭하면 이름 수정"
-                                        >{tag}</button>
+                                        >{tag.name}</button>
                                     )}
                                     <button
                                         type="button"
@@ -416,7 +446,7 @@ export default function AdminView({ dbData, refreshDb, selectedTripId: initialTr
                                     className="btn btn-ghost btn-sm"
                                     onClick={handleSeedDefaultTags}
                                 >
-                                    기본 태그 추가 ({DEFAULT_TAGS.join(', ')})
+                                    기본 태그 추가 ({DEFAULT_TAGS.map(t => t.name).join(', ')})
                                 </button>
                             )}
                         </div>

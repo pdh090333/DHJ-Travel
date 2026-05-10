@@ -1,11 +1,44 @@
 // Database layer using Firebase Firestore
 //
 // Schema:
-// Trip = { id, title, startDate, endDate, tags }
-// Activity = { id, tripId, date, startTime, endTime, title, departure, arrival, departureUrl, arrivalUrl, notes, imageUrl, reviewUrl, color, tag }
+// Trip = { id, title, startDate, endDate, tags: {name, color}[] }
+// Activity = { id, tripId, date, startTime, endTime, title, departure, arrival, departureUrl, arrivalUrl, notes, imageUrl, reviewUrl, tag }
+//   - `departure`/`departureUrl` no longer collected via UI; existing values are still
+//     displayed in itinerary view. Color is derived from the tag, not stored on the activity.
 // Candidate = { id, tripId, title, url, notes, imageUrl }
 
-export const DEFAULT_TAGS = ['이동', '식사', '투어', '숙박', '관광'];
+export const COLOR_PALETTE = [
+    { name: '인디고', value: '#4F46E5' },
+    { name: '로즈', value: '#E11D48' },
+    { name: '앰버', value: '#F59E0B' },
+    { name: '에메랄드', value: '#10B981' },
+    { name: '스카이', value: '#0EA5E9' },
+    { name: '바이올렛', value: '#8B5CF6' },
+    { name: '슬레이트', value: '#64748B' }
+];
+
+export const DEFAULT_TAG_COLOR = '#4F46E5';
+
+export const DEFAULT_TAGS = [
+    { name: '이동', color: '#4F46E5' },   // 인디고
+    { name: '식사', color: '#F59E0B' },   // 앰버
+    { name: '투어', color: '#10B981' },   // 에메랄드
+    { name: '숙박', color: '#8B5CF6' },   // 바이올렛
+    { name: '관광', color: '#0EA5E9' }    // 스카이
+];
+
+// Older trips stored tags as plain strings. Normalize to {name, color} so
+// downstream code (color resolution, pills, modals) can treat both shapes the same.
+export const normalizeTags = (raw) =>
+    (raw || []).map(t =>
+        typeof t === 'string' ? { name: t, color: DEFAULT_TAG_COLOR } : t
+    );
+
+export const resolveActivityColor = (activity, tripTags) => {
+    if (!activity?.tag) return null;
+    const tag = normalizeTags(tripTags).find(t => t.name === activity.tag);
+    return tag?.color || null;
+};
 
 import {
     collection, getDocs, doc, setDoc, deleteDoc,
