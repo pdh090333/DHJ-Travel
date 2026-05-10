@@ -152,8 +152,13 @@ export default function ActivityModal({ activity, onClose, onSave, onDelete, onM
                     */}
 
                     <div className="form-group">
+                        <label>도착지 이름</label>
+                        <input type="text" name="arrival" value={formData.arrival} onChange={handleChange} placeholder="나리타공항" />
+                    </div>
+
+                    <div className="form-group">
                         <label>
-                            도착지 이름
+                            도착지 구글맵 링크
                             <span
                                 className="form-info-icon"
                                 title="이 도착지가 다음 일정의 출발지로 자동 사용되어 길찾기됩니다. 출발지를 따로 입력하지 않습니다."
@@ -162,11 +167,6 @@ export default function ActivityModal({ activity, onClose, onSave, onDelete, onM
                                 <Info size={14} />
                             </span>
                         </label>
-                        <input type="text" name="arrival" value={formData.arrival} onChange={handleChange} placeholder="나리타공항" />
-                    </div>
-
-                    <div className="form-group">
-                        <label>도착지 구글맵 링크</label>
                         <input type="url" name="arrivalUrl" value={formData.arrivalUrl} onChange={handleChange} placeholder="https://goo.gl/maps/..." />
                     </div>
 
