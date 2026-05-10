@@ -336,11 +336,14 @@ export default function AdminView({ dbData, refreshDb, selectedTripId: initialTr
         if (viewMode === 'trip' && !hasTripPeriod) setViewMode('week');
     }, [viewMode, hasTripPeriod]);
 
-    // Click outside the trip-settings popover closes it.
+    // Click outside the trip-settings popover (backdrop, toggle button, or
+    // popover content) closes it. The backdrop's onClick handles most cases;
+    // this guards against e.g. ESC-equivalent stray clicks.
     useEffect(() => {
         if (!headerExpanded) return;
         const handler = (e) => {
             if (e.target.closest('.trip-settings-toggle-area')) return;
+            if (e.target.closest('.trip-settings-popover')) return;
             setHeaderExpanded(false);
         };
         const t = setTimeout(() => document.addEventListener('mousedown', handler), 0);
@@ -537,12 +540,19 @@ export default function AdminView({ dbData, refreshDb, selectedTripId: initialTr
                             {headerExpanded ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
                             <span>여행 설정</span>
                         </button>
-                        {headerExpanded && (
-                            <div className="trip-settings-popover">
+                    </div>
+                    {headerExpanded && (
+                        <>
+                            <div
+                                className="trip-settings-backdrop"
+                                onClick={() => setHeaderExpanded(false)}
+                                aria-hidden="true"
+                            />
+                            <div className="trip-settings-popover" role="dialog" aria-label="여행 설정">
                                 {tripSettingsPanel}
                             </div>
-                        )}
-                    </div>
+                        </>
+                    )}
 
                     <div className="view-mode-toggle">
                         <button

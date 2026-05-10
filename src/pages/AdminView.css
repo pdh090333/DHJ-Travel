@@ -191,27 +191,44 @@
     border: 1px solid var(--border-color);
 }
 
+.trip-settings-backdrop {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.45);
+    backdrop-filter: blur(6px);
+    -webkit-backdrop-filter: blur(6px);
+    z-index: 25;
+}
+
 .trip-settings-popover {
-    position: absolute;
-    top: 100%;
-    right: 0;
-    margin-top: 0.4rem;
-    width: max-content;
-    max-width: calc(100vw - 2rem);
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: min(720px, calc(100vw - 4rem));
+    max-height: 85vh;
+    overflow-y: auto;
     background: var(--panel-bg);
     border: 1px solid var(--border-color);
-    border-radius: var(--radius-md);
+    border-radius: var(--radius-lg);
     box-shadow: var(--shadow-lg);
-    padding: 0.7rem 0.9rem;
+    padding: 1.5rem;
     z-index: 30;
 }
 
+/* Stack rows vertically inside the modal: trip selector + period + tags
+   on top, CSV import/export at the bottom (instead of squeezed onto the
+   right side of the panel). */
 .trip-settings-panel {
     display: flex;
-    flex-direction: row;
-    align-items: center;
-    flex-wrap: wrap;
-    gap: 0.75rem;
+    flex-direction: column;
+    gap: 0.85rem;
+}
+
+.trip-settings-panel .admin-actions {
+    padding-top: 0.75rem;
+    border-top: 1px solid var(--border-color);
+    justify-content: flex-end;
 }
 
 /* Stack view-mode buttons in the narrow right column */
