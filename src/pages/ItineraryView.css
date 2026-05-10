@@ -253,6 +253,20 @@
     margin-left: 0.25rem;
 }
 
+.location-info-icon {
+    display: inline-flex;
+    align-items: center;
+    color: var(--text-secondary);
+    opacity: 0.5;
+    cursor: help;
+    transition: opacity 0.15s ease;
+}
+
+.location-info-icon:hover {
+    opacity: 1;
+    color: var(--primary);
+}
+
 .notes {
     font-size: 0.9rem;
     color: var(--text-secondary);

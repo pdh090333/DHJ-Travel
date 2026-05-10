@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Star, ExternalLink, Calendar } from 'lucide-react';
+import { Star, ExternalLink, Calendar, Info } from 'lucide-react';
 import './ItineraryView.css';
 
 const WEEKDAYS = ['일', '월', '화', '수', '목', '금', '토'];
@@ -149,6 +149,13 @@ export default function ItineraryView({ dbData, selectedTripId }) {
                                 📍 {eff.departure}
                                 {eff.inherited && <span className="inherited-tag" title="직전 일정의 도착지에서 이어짐"> (직전 도착지)</span>}
                             </a>
+                            <span
+                                className="location-info-icon"
+                                title="출발지를 비워두면 직전 일정의 도착지가 자동으로 출발지로 사용되어 길찾기가 됩니다."
+                                aria-label="출발지를 비워두면 직전 일정의 도착지가 자동으로 출발지로 사용되어 길찾기가 됩니다."
+                            >
+                                <Info size={14} />
+                            </span>
                         </div>
                     )}
 
