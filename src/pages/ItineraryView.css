@@ -5,6 +5,51 @@
     padding-top: 1rem;
 }
 
+.trip-overview-banner {
+    background: linear-gradient(135deg, var(--primary), #EC4899);
+    color: white;
+    padding: 1.25rem 1.5rem;
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-md);
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.trip-overview-title {
+    font-size: 1.35rem;
+    font-weight: 700;
+    line-height: 1.2;
+    color: white;
+}
+
+.trip-overview-period {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.95rem;
+    opacity: 0.95;
+    flex-wrap: wrap;
+}
+
+.trip-overview-dates {
+    font-weight: 600;
+}
+
+.trip-overview-arrow {
+    opacity: 0.85;
+}
+
+.trip-overview-days {
+    margin-left: auto;
+    background: rgba(255, 255, 255, 0.22);
+    padding: 0.2rem 0.7rem;
+    border-radius: 999px;
+    font-size: 0.85rem;
+    font-weight: 700;
+    backdrop-filter: blur(4px);
+}
+
 .date-selector {
     display: flex;
     overflow-x: auto;
@@ -12,6 +57,76 @@
     padding-bottom: 0.5rem;
     scrollbar-width: thin;
     -webkit-overflow-scrolling: touch;
+}
+
+.date-btn {
+    flex-direction: column;
+    align-items: center;
+    gap: 0.15rem;
+    padding: 0.55rem 0.85rem;
+    min-width: 4.75rem;
+    flex-shrink: 0;
+    line-height: 1.15;
+}
+
+.date-btn-day {
+    font-size: 0.7rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    opacity: 0.85;
+}
+
+.date-btn-date {
+    font-size: 0.9rem;
+    font-weight: 600;
+}
+
+.days-container {
+    display: flex;
+    flex-direction: column;
+    gap: 2rem;
+}
+
+.day-section {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+.day-section-header {
+    display: flex;
+    align-items: baseline;
+    gap: 0.75rem;
+    padding-bottom: 0.5rem;
+    border-bottom: 2px solid var(--primary);
+}
+
+.day-section-day {
+    font-size: 1.1rem;
+    font-weight: 700;
+    color: var(--primary);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+}
+
+.day-section-date {
+    font-size: 0.95rem;
+    color: var(--text-secondary);
+    font-weight: 600;
+}
+
+.no-activities {
+    color: var(--text-secondary);
+    font-size: 0.9rem;
+    padding: 0.5rem 0 0 1rem;
+    font-style: italic;
+}
+
+.no-activities-empty {
+    color: var(--text-secondary);
+    text-align: center;
+    padding: 2rem;
 }
 
 .date-selector::-webkit-scrollbar {
@@ -132,15 +247,9 @@
     font-size: 0.9rem;
     color: var(--text-secondary);
     line-height: 1.5;
-    background: rgba(0, 0, 0, 0.02);
+    background: var(--notes-bg);
     padding: 0.75rem;
     border-radius: var(--radius-md);
-}
-
-@media (prefers-color-scheme: dark) {
-    .notes {
-        background: rgba(255, 255, 255, 0.02);
-    }
 }
 
 .activity-image-wrapper {

@@ -5,11 +5,31 @@ import { Draggable } from '@fullcalendar/interaction';
 import CalendarView from './CalendarView';
 import './AdminView.css';
 
+const WEEKDAYS = ['일', '월', '화', '수', '목', '금', '토'];
+
+const computeTripDuration = (start, end) => {
+    if (!start || !end) return 0;
+    const [sy, sm, sd] = start.split('-').map(Number);
+    const [ey, em, ed] = end.split('-').map(Number);
+    const startMs = Date.UTC(sy, sm - 1, sd);
+    const endMs = Date.UTC(ey, em - 1, ed);
+    if (endMs < startMs) return 0;
+    return Math.floor((endMs - startMs) / 86400000) + 1;
+};
+
+const formatTripDateLabel = (dateStr) => {
+    if (!dateStr) return '';
+    const [y, m, d] = dateStr.split('-').map(Number);
+    const wd = WEEKDAYS[new Date(y, m - 1, d).getDay()];
+    return `${m}/${d} (${wd})`;
+};
+
 export default function AdminView({ dbData, refreshDb, selectedTripId: initialTripId, onUnschedule }) {
+    const initialTrip = dbData.trips.find(t => t.id === (initialTripId || dbData.trips[0]?.id));
     const [selectedTripId, setSelectedTripId] = useState(initialTripId || dbData.trips[0]?.id || '');
-    const [selectedTripTitle, setSelectedTripTitle] = useState(
-        dbData.trips.find(t => t.id === (initialTripId || dbData.trips[0]?.id))?.title || ''
-    );
+    const [selectedTripTitle, setSelectedTripTitle] = useState(initialTrip?.title || '');
+    const [tripStartDate, setTripStartDate] = useState(initialTrip?.startDate || '');
+    const [tripEndDate, setTripEndDate] = useState(initialTrip?.endDate || '');
 
     const [newCandidate, setNewCandidate] = useState({ title: '', url: '', notes: '', imageUrl: '' });
 
@@ -128,21 +148,34 @@ export default function AdminView({ dbData, refreshDb, selectedTripId: initialTr
         return url;
     };
 
-    // Auto-save title
+    // Auto-save title + period
     useEffect(() => {
+        if (!selectedTripId) return;
+        const currentTrip = dbData.trips.find(t => t.id === selectedTripId);
+        if (!currentTrip) return;
+        const changed =
+            currentTrip.title !== selectedTripTitle ||
+            (currentTrip.startDate || '') !== tripStartDate ||
+            (currentTrip.endDate || '') !== tripEndDate;
+        if (!changed) return;
+
         const timeout = setTimeout(() => {
-            const currentTrip = dbData.trips.find(t => t.id === selectedTripId);
-            if (currentTrip && currentTrip.title !== selectedTripTitle) {
-                saveTrip({ ...currentTrip, title: selectedTripTitle }).then(() => refreshDb());
-            }
+            saveTrip({
+                ...currentTrip,
+                title: selectedTripTitle,
+                startDate: tripStartDate,
+                endDate: tripEndDate
+            }).then(() => refreshDb());
         }, 800);
         return () => clearTimeout(timeout);
-    }, [selectedTripTitle, selectedTripId, dbData.trips, refreshDb]);
+    }, [selectedTripTitle, tripStartDate, tripEndDate, selectedTripId, dbData.trips, refreshDb]);
 
     const handleTripSelect = (id) => {
         setSelectedTripId(id);
         const trip = dbData.trips.find(t => t.id === id);
         setSelectedTripTitle(trip?.title || '');
+        setTripStartDate(trip?.startDate || '');
+        setTripEndDate(trip?.endDate || '');
     };
 
     const handleExport = () => {
@@ -179,6 +212,8 @@ export default function AdminView({ dbData, refreshDb, selectedTripId: initialTr
         await refreshDb();
         setSelectedTripId(newTrip.id);
         setSelectedTripTitle(title);
+        setTripStartDate('');
+        setTripEndDate('');
     };
 
     const handleAddCandidate = async () => {
@@ -200,40 +235,75 @@ export default function AdminView({ dbData, refreshDb, selectedTripId: initialTr
 
     const currentCandidates = (dbData.candidates || []).filter(c => c.tripId === selectedTripId);
 
+    const tripDuration = computeTripDuration(tripStartDate, tripEndDate);
+
     const handleDeleteTrip = async () => {
         if (!selectedTripId) return;
         if (!confirm('정말로 이 여행과 관련된 모든 일정을 삭제하시겠습니까?')) return;
+        const next = dbData.trips.find(t => t.id !== selectedTripId);
         await deleteTrip(selectedTripId);
         await refreshDb();
-        setSelectedTripId(dbData.trips[0]?.id || '');
+        setSelectedTripId(next?.id || '');
+        setSelectedTripTitle(next?.title || '');
+        setTripStartDate(next?.startDate || '');
+        setTripEndDate(next?.endDate || '');
     };
 
     return (
         <div className="admin-page">
             <div className="admin-header">
                 <div className="trip-manager">
-                    <select
-                        value={selectedTripId}
-                        onChange={(e) => handleTripSelect(e.target.value)}
-                        className="trip-selector-admin"
-                    >
-                        {dbData.trips.map(t => (
-                            <option key={t.id} value={t.id}>{t.title}</option>
-                        ))}
-                    </select>
-                    <input
-                        type="text"
-                        value={selectedTripTitle}
-                        onChange={(e) => setSelectedTripTitle(e.target.value)}
-                        placeholder="여행 이름 수정"
-                        className="trip-title-input"
-                    />
-                    <button className="btn btn-ghost" onClick={handleAddNewTrip} title="New Trip">
-                        <Plus size={16} />
-                    </button>
-                    <button className="btn btn-ghost danger" onClick={handleDeleteTrip} title="Delete Trip">
-                        <Trash size={16} />
-                    </button>
+                    <div className="trip-manager-row">
+                        <select
+                            value={selectedTripId}
+                            onChange={(e) => handleTripSelect(e.target.value)}
+                            className="trip-selector-admin"
+                        >
+                            {dbData.trips.map(t => (
+                                <option key={t.id} value={t.id}>{t.title}</option>
+                            ))}
+                        </select>
+                        <input
+                            type="text"
+                            value={selectedTripTitle}
+                            onChange={(e) => setSelectedTripTitle(e.target.value)}
+                            placeholder="여행 이름 수정"
+                            className="trip-title-input"
+                        />
+                        <button className="btn btn-ghost" onClick={handleAddNewTrip} title="New Trip">
+                            <Plus size={16} />
+                        </button>
+                        <button className="btn btn-ghost danger" onClick={handleDeleteTrip} title="Delete Trip">
+                            <Trash size={16} />
+                        </button>
+                    </div>
+                    <div className="trip-period-row">
+                        <label className="trip-period-field">
+                            <span className="trip-period-label">시작</span>
+                            <input
+                                type="date"
+                                value={tripStartDate}
+                                onChange={(e) => setTripStartDate(e.target.value)}
+                                className="trip-date-input"
+                            />
+                        </label>
+                        <span className="trip-period-arrow">→</span>
+                        <label className="trip-period-field">
+                            <span className="trip-period-label">종료</span>
+                            <input
+                                type="date"
+                                value={tripEndDate}
+                                onChange={(e) => setTripEndDate(e.target.value)}
+                                className="trip-date-input"
+                                min={tripStartDate || undefined}
+                            />
+                        </label>
+                        <span className="trip-period-summary">
+                            {tripDuration > 0
+                                ? `총 ${tripDuration}일 · ${formatTripDateLabel(tripStartDate)} ~ ${formatTripDateLabel(tripEndDate)}`
+                                : '여행 기간을 설정하면 일정이 그 범위로 표시됩니다.'}
+                        </span>
+                    </div>
                 </div>
 
                 <div className="admin-actions">
