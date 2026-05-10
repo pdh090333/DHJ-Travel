@@ -243,6 +243,16 @@
     background: var(--border-color);
 }
 
+.location-inherited .location-link {
+    opacity: 0.75;
+}
+
+.inherited-tag {
+    font-size: 0.75rem;
+    color: var(--text-secondary);
+    margin-left: 0.25rem;
+}
+
 .notes {
     font-size: 0.9rem;
     color: var(--text-secondary);
