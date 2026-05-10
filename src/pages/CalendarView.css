@@ -95,14 +95,15 @@
    table rows ignore min-height in most browsers — earlier attempts
    with min-height looked unchanged because expandRows={true} was
    silently governing the row size in both environments instead.
-   With `height: 4rem !important` (18 rows × 64px = 1152px) every
-   monitor renders a 64px row regardless of expandRows. A 1920x1080
-   laptop (~750px usable) shows a vertical scrollbar covering ~5–6h
-   while a 27" QHD desktop (~1100px) shows ~1h of scroll — the rows
-   are now uniformly readable instead of being squeezed on the laptop.
+   The 5rem (80px) hour-row is sized so a 15-minute event gets a 20px
+   slice — minus the .fc-event-main 2px padding top/bottom, the
+   remaining 16px fits one line of the ~13–14px event title. Below
+   that (e.g. 4rem → 16px slot → 12px content) titles get clipped on
+   short events. The taller row means scrollbars cover more time:
+   ~9h on a 1920x1080 laptop, ~4–5h on a 27" QHD.
    snapDuration='00:15:00' keeps drag/select precision at 15 minutes. */
 .fc .fc-timegrid-slot {
-    height: 4rem !important;
+    height: 5rem !important;
 }
 
 .fc-theme-standard .fc-timegrid-slot-label-cushion,
