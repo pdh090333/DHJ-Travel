@@ -302,6 +302,105 @@
     }
 }
 
+.trip-tag-row {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    flex-wrap: wrap;
+}
+
+.trip-tag-row-label {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+    font-size: 0.8rem;
+    font-weight: 700;
+    color: var(--text-secondary);
+}
+
+.trip-tag-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.35rem;
+    align-items: center;
+}
+
+.trip-tag-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    padding: 0.2rem 0.4rem 0.2rem 0.6rem;
+    background: var(--bg-color);
+    border: 1px solid var(--border-color);
+    border-radius: 999px;
+    font-size: 0.85rem;
+}
+
+.trip-tag-name {
+    background: transparent;
+    border: none;
+    padding: 0;
+    color: var(--text-primary);
+    font: inherit;
+    cursor: pointer;
+}
+
+.trip-tag-name:hover {
+    color: var(--primary);
+    text-decoration: underline;
+}
+
+.trip-tag-rename-input {
+    background: transparent;
+    border: none;
+    border-bottom: 1px solid var(--primary);
+    color: var(--text-primary);
+    font: inherit;
+    width: 6rem;
+    padding: 0;
+    outline: none;
+}
+
+.trip-tag-remove {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: transparent;
+    border: none;
+    color: var(--text-secondary);
+    cursor: pointer;
+    padding: 0.1rem;
+    border-radius: 50%;
+    opacity: 0.6;
+}
+
+.trip-tag-remove:hover {
+    color: var(--danger);
+    background: rgba(239, 68, 68, 0.1);
+    opacity: 1;
+}
+
+.trip-tag-add {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+}
+
+.trip-tag-input {
+    width: 7rem;
+    padding: 0.3rem 0.5rem;
+    border-radius: var(--radius-md);
+    border: 1px solid var(--border-color);
+    background: var(--bg-color);
+    color: var(--text-primary);
+    font-size: 0.85rem;
+}
+
+.trip-tag-input:focus {
+    outline: none;
+    border-color: var(--primary);
+}
+
 .drop-placeholder {
     /* Always rendered, hidden by default — visibility is class-toggled
        on the sidebar so we never remount this node during a drag. Earlier

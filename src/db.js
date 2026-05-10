@@ -1,9 +1,11 @@
 // Database layer using Firebase Firestore
 //
 // Schema:
-// Trip = { id, title, startDate, endDate }
-// Activity = { id, tripId, date, startTime, endTime, title, departure, arrival, departureUrl, arrivalUrl, notes, imageUrl, reviewUrl, color }
+// Trip = { id, title, startDate, endDate, tags }
+// Activity = { id, tripId, date, startTime, endTime, title, departure, arrival, departureUrl, arrivalUrl, notes, imageUrl, reviewUrl, color, tag }
 // Candidate = { id, tripId, title, url, notes, imageUrl }
+
+export const DEFAULT_TAGS = ['이동', '식사', '투어', '숙박', '관광'];
 
 import {
     collection, getDocs, doc, setDoc, deleteDoc,

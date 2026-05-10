@@ -91,9 +91,11 @@ export default function CalendarView({ dbData, selectedTripId, refreshDb, onDrag
         }
 
         const color = act.color || 'var(--primary)';
+        const baseTitle = act.title || '새 일정';
+        const titleWithTag = act.tag ? `[${act.tag}] ${baseTitle}` : baseTitle;
         return {
             id: act.id,
-            title: act.title || '새 일정',
+            title: titleWithTag,
             start: startStr,
             end: endStr,
             backgroundColor: color,
@@ -357,6 +359,7 @@ export default function CalendarView({ dbData, selectedTripId, refreshDb, onDrag
                     activity={selectedActivity} onClose={() => setSelectedActivity(null)}
                     onSave={handleSaveModal} onDelete={handleDeleteModal}
                     onMoveToCandidates={() => onUnschedule(selectedTripId, selectedActivity.id)}
+                    availableTags={currentTrip?.tags || []}
                 />
             )}
         </div>

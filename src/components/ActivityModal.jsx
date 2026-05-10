@@ -14,7 +14,7 @@ export const COLOR_PALETTE = [
     { name: '슬레이트', value: '#64748B' }
 ];
 
-export default function ActivityModal({ activity, onClose, onSave, onDelete, onMoveToCandidates }) {
+export default function ActivityModal({ activity, onClose, onSave, onDelete, onMoveToCandidates, availableTags = [] }) {
     const [formData, setFormData] = useState({
         title: '',
         date: '',
@@ -27,7 +27,8 @@ export default function ActivityModal({ activity, onClose, onSave, onDelete, onM
         notes: '',
         imageUrl: '',
         reviewUrl: '',
-        color: DEFAULT_ACTIVITY_COLOR
+        color: DEFAULT_ACTIVITY_COLOR,
+        tag: ''
     });
 
     useEffect(() => {
@@ -42,10 +43,18 @@ export default function ActivityModal({ activity, onClose, onSave, onDelete, onM
                 notes: activity.notes || '',
                 imageUrl: activity.imageUrl || '',
                 reviewUrl: activity.reviewUrl || '',
-                color: activity.color || DEFAULT_ACTIVITY_COLOR
+                color: activity.color || DEFAULT_ACTIVITY_COLOR,
+                tag: activity.tag || ''
             });
         }
     }, [activity]);
+
+    // If the saved tag is no longer in the trip's tag list (e.g. it was
+    // deleted from the taxonomy), keep it as an option so the dropdown
+    // doesn't silently drop the value.
+    const tagOptions = formData.tag && !availableTags.includes(formData.tag)
+        ? [...availableTags, formData.tag]
+        : availableTags;
 
     const extractDirectImageUrl = (url) => {
         if (!url) return '';
@@ -111,9 +120,20 @@ export default function ActivityModal({ activity, onClose, onSave, onDelete, onM
                         </div>
                     </div>
 
-                    <div className="form-group">
-                        <label>일정 제목</label>
-                        <input type="text" name="title" value={formData.title} onChange={handleChange} placeholder="비행기 탑승, 호텔 체크인 등" required />
+                    <div className="form-row">
+                        <div className="form-group" style={{ flex: '0 0 8rem' }}>
+                            <label>태그</label>
+                            <select name="tag" value={formData.tag} onChange={handleChange}>
+                                <option value="">(없음)</option>
+                                {tagOptions.map(t => (
+                                    <option key={t} value={t}>{t}</option>
+                                ))}
+                            </select>
+                        </div>
+                        <div className="form-group">
+                            <label>일정 제목</label>
+                            <input type="text" name="title" value={formData.title} onChange={handleChange} placeholder="비행기 탑승, 호텔 체크인 등" required />
+                        </div>
                     </div>
 
                     <div className="form-row">

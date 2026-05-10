@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { replaceTripActivities, exportToCSV, parseCSV, generateId, saveTrip, deleteTrip, saveCandidate, deleteCandidate } from '../db';
-import { Download, Upload, Plus, Trash2, Save, Trash, MapPin, Link as LinkIcon, ExternalLink } from 'lucide-react';
+import { replaceTripActivities, exportToCSV, parseCSV, generateId, saveTrip, deleteTrip, saveCandidate, deleteCandidate, saveActivity, DEFAULT_TAGS } from '../db';
+import { Download, Upload, Plus, Trash2, Save, Trash, MapPin, Link as LinkIcon, ExternalLink, Tag, X } from 'lucide-react';
 import { Draggable } from '@fullcalendar/interaction';
 import CalendarView from './CalendarView';
 import './AdminView.css';
@@ -32,6 +32,9 @@ export default function AdminView({ dbData, refreshDb, selectedTripId: initialTr
     const [tripEndDate, setTripEndDate] = useState(initialTrip?.endDate || '');
 
     const [newCandidate, setNewCandidate] = useState({ title: '', url: '', notes: '', imageUrl: '' });
+    const [newTagInput, setNewTagInput] = useState('');
+    const [editingTag, setEditingTag] = useState(null);
+    const [editingTagValue, setEditingTagValue] = useState('');
 
     // Was useState — but toggling state on every wishlist boundary crossing
     // forced an AdminView+CalendarView re-render mid-drag, which rebuilt
@@ -249,6 +252,67 @@ export default function AdminView({ dbData, refreshDb, selectedTripId: initialTr
         setTripEndDate(next?.endDate || '');
     };
 
+    // ─── Tag management ─────────────────────────────────
+    const currentTrip = dbData.trips.find(t => t.id === selectedTripId);
+    const currentTags = currentTrip?.tags || [];
+
+    const persistTags = async (newTags) => {
+        if (!currentTrip) return;
+        await saveTrip({
+            ...currentTrip,
+            title: selectedTripTitle,
+            startDate: tripStartDate,
+            endDate: tripEndDate,
+            tags: newTags
+        });
+        await refreshDb();
+    };
+
+    const handleAddTag = async (e) => {
+        e.preventDefault();
+        const t = newTagInput.trim();
+        if (!t) return;
+        if (currentTags.includes(t)) {
+            setNewTagInput('');
+            return;
+        }
+        await persistTags([...currentTags, t]);
+        setNewTagInput('');
+    };
+
+    const handleRemoveTag = async (tag) => {
+        if (!confirm(`"${tag}" 태그를 삭제하시겠습니까? (이 태그가 적용된 활동은 표시 이름만 남습니다.)`)) return;
+        await persistTags(currentTags.filter(t => t !== tag));
+    };
+
+    const handleRenameTag = async (oldName, newName) => {
+        const trimmed = newName.trim();
+        if (!trimmed || trimmed === oldName) return;
+        if (currentTags.includes(trimmed)) {
+            alert(`"${trimmed}" 태그가 이미 있습니다.`);
+            return;
+        }
+        const newTags = currentTags.map(t => t === oldName ? trimmed : t);
+        const affected = dbData.activities.filter(
+            a => a.tripId === selectedTripId && a.tag === oldName
+        );
+        await Promise.all([
+            saveTrip({
+                ...currentTrip,
+                title: selectedTripTitle,
+                startDate: tripStartDate,
+                endDate: tripEndDate,
+                tags: newTags
+            }),
+            ...affected.map(a => saveActivity({ ...a, tag: trimmed }))
+        ]);
+        await refreshDb();
+    };
+
+    const handleSeedDefaultTags = async () => {
+        await persistTags([...DEFAULT_TAGS]);
+    };
+
     return (
         <div className="admin-page">
             <div className="admin-header">
@@ -303,6 +367,71 @@ export default function AdminView({ dbData, refreshDb, selectedTripId: initialTr
                                 ? `총 ${tripDuration}일 · ${formatTripDateLabel(tripStartDate)} ~ ${formatTripDateLabel(tripEndDate)}`
                                 : '여행 기간을 설정하면 일정이 그 범위로 표시됩니다.'}
                         </span>
+                    </div>
+                    <div className="trip-tag-row">
+                        <span className="trip-tag-row-label">
+                            <Tag size={14} /> 태그
+                        </span>
+                        <div className="trip-tag-list">
+                            {currentTags.map(tag => (
+                                <span key={tag} className="trip-tag-pill">
+                                    {editingTag === tag ? (
+                                        <input
+                                            type="text"
+                                            value={editingTagValue}
+                                            onChange={(e) => setEditingTagValue(e.target.value)}
+                                            onBlur={() => {
+                                                handleRenameTag(tag, editingTagValue);
+                                                setEditingTag(null);
+                                            }}
+                                            onKeyDown={(e) => {
+                                                if (e.key === 'Enter') e.target.blur();
+                                                if (e.key === 'Escape') setEditingTag(null);
+                                            }}
+                                            autoFocus
+                                            className="trip-tag-rename-input"
+                                        />
+                                    ) : (
+                                        <button
+                                            type="button"
+                                            className="trip-tag-name"
+                                            onClick={() => {
+                                                setEditingTag(tag);
+                                                setEditingTagValue(tag);
+                                            }}
+                                            title="클릭하면 이름 수정"
+                                        >{tag}</button>
+                                    )}
+                                    <button
+                                        type="button"
+                                        className="trip-tag-remove"
+                                        onClick={() => handleRemoveTag(tag)}
+                                        title="삭제"
+                                    ><X size={12} /></button>
+                                </span>
+                            ))}
+                            {currentTags.length === 0 && (
+                                <button
+                                    type="button"
+                                    className="btn btn-ghost btn-sm"
+                                    onClick={handleSeedDefaultTags}
+                                >
+                                    기본 태그 추가 ({DEFAULT_TAGS.join(', ')})
+                                </button>
+                            )}
+                        </div>
+                        <form className="trip-tag-add" onSubmit={handleAddTag}>
+                            <input
+                                type="text"
+                                value={newTagInput}
+                                onChange={(e) => setNewTagInput(e.target.value)}
+                                placeholder="새 태그"
+                                className="trip-tag-input"
+                            />
+                            <button type="submit" className="btn btn-ghost btn-sm" title="추가">
+                                <Plus size={14} />
+                            </button>
+                        </form>
                     </div>
                 </div>
 

@@ -4,7 +4,7 @@ import ItineraryView from './pages/ItineraryView';
 import AdminView from './pages/AdminView';
 import TripSelect from './pages/TripSelect';
 import LoginView from './pages/LoginView';
-import { loadDB, ensureDefaultTrip, generateId, saveTrip, deleteTrip } from './db';
+import { loadDB, ensureDefaultTrip, generateId, saveTrip, deleteTrip, DEFAULT_TAGS } from './db';
 import { subscribeToAuth, signOutUser, isAllowedUser } from './auth';
 import './index.css';
 
@@ -95,7 +95,8 @@ function App() {
       id: generateId(),
       title,
       startDate: '',
-      endDate: ''
+      endDate: '',
+      tags: [...DEFAULT_TAGS]
     };
 
     try {

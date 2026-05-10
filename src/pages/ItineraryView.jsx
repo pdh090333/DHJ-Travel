@@ -140,7 +140,10 @@ export default function ItineraryView({ dbData, selectedTripId }) {
                 <span>{activity.endTime}</span>
             </div>
             <div className="activity-card" style={cardStyle}>
-                <h3>{activity.title}</h3>
+                <h3>
+                    {activity.tag && <span className="activity-tag">{activity.tag}</span>}
+                    {activity.title}
+                </h3>
 
                 <div className="locations-wrapper">
                     {hasDeparture && (

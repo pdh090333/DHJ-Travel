@@ -224,6 +224,19 @@
     color: var(--text-primary);
 }
 
+.activity-tag {
+    display: inline-block;
+    font-size: 0.7rem;
+    font-weight: 700;
+    color: white;
+    background: var(--activity-color, var(--primary));
+    padding: 0.15rem 0.5rem;
+    border-radius: 4px;
+    margin-right: 0.5rem;
+    vertical-align: middle;
+    letter-spacing: 0.02em;
+}
+
 .location-link {
     display: inline-flex;
     align-items: center;
