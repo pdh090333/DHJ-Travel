@@ -83,17 +83,33 @@
 }
 
 .fc .fc-timegrid-slot {
-    height: 0.35rem !important;
+    height: 0.3rem !important;
+}
+
+/* The major (label) slot rows expand to fit the text inside their
+   cushion. Default FC font / padding makes those rows ~16-20px each,
+   which alone is ~360px for 18 labels — bigger than our calendar
+   pane on small viewports. Tighten font and kill padding so the
+   label rows compress to ~11-12px and the entire 18-hour grid fits
+   without an internal scroll. */
+.fc-theme-standard .fc-timegrid-slot-label-cushion,
+.fc-theme-standard .fc-timegrid-axis-cushion {
+    font-size: 0.72rem !important;
+    line-height: 1 !important;
+    padding: 0 0.35rem !important;
 }
 
 /* Belt-and-suspenders: kill the time-grid's internal scroll so all 18
-   hours are always visible at once. Slot height keeps total content
-   under ~25rem, which fits the calendar area on any viewport this app
-   targets — but FC v6 sometimes keeps the scroller alive even when
-   content fits. Forcing overflow:hidden is safe here. */
+   hours are always visible at once. */
 .fc .fc-timegrid .fc-scroller-liquid-absolute,
 .fc .fc-timegrid .fc-scroller {
     overflow: hidden !important;
+}
+
+/* Reduce the day-column header (요일 + 날짜 row) — saves another ~16px
+   of vertical space the time grid can use. */
+.fc .fc-col-header-cell-cushion {
+    padding: 4px 4px !important;
 }
 
 /* Body lanes: dotted minor (15-min) lines so quarter-hour boundaries
@@ -114,7 +130,7 @@
    The label cell is in the first minor slot at the top of the hour;
    translateY pushes it visually 1.5 slots down so it lands in the middle. */
 .fc-theme-standard .fc-timegrid-slot-label-cushion {
-    transform: translateY(0.525rem);
+    transform: translateY(0.45rem);
 }
 
 .fc .fc-col-header-cell-cushion {
