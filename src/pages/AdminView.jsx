@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { replaceTripActivities, exportToCSV, parseCSV, generateId, saveTrip, deleteTrip, saveCandidate, deleteCandidate, saveActivity, DEFAULT_TAGS, COLOR_PALETTE, DEFAULT_TAG_COLOR, normalizeTags } from '../db';
-import { Download, Upload, Plus, Trash2, Save, Trash, MapPin, Link as LinkIcon, ExternalLink, Tag, X } from 'lucide-react';
+import { Download, Upload, Plus, Trash2, Save, Trash, MapPin, Link as LinkIcon, ExternalLink, Tag, X, ChevronDown, ChevronUp } from 'lucide-react';
 import { Draggable } from '@fullcalendar/interaction';
 import CalendarView from './CalendarView';
 import './AdminView.css';
@@ -36,6 +36,7 @@ export default function AdminView({ dbData, refreshDb, selectedTripId: initialTr
     const [editingTag, setEditingTag] = useState(null);
     const [editingTagValue, setEditingTagValue] = useState('');
     const [colorPickerForTag, setColorPickerForTag] = useState(null);
+    const [headerExpanded, setHeaderExpanded] = useState(false);
 
     // Was useState — but toggling state on every wishlist boundary crossing
     // forced an AdminView+CalendarView re-render mid-drag, which rebuilt
@@ -323,6 +324,27 @@ export default function AdminView({ dbData, refreshDb, selectedTripId: initialTr
     return (
         <div className="admin-page">
             <div className="admin-header">
+                <div className="admin-header-bar">
+                    <span className="admin-header-summary">
+                        <strong>{currentTrip?.title || '여행 없음'}</strong>
+                        {tripDuration > 0 && (
+                            <span className="admin-header-summary-period">
+                                {' · '}총 {tripDuration}일 · {formatTripDateLabel(tripStartDate)} ~ {formatTripDateLabel(tripEndDate)}
+                            </span>
+                        )}
+                    </span>
+                    <button
+                        type="button"
+                        className="btn btn-ghost btn-sm"
+                        onClick={() => setHeaderExpanded(v => !v)}
+                        title={headerExpanded ? '여행 설정 접기' : '여행 설정 펼치기'}
+                    >
+                        {headerExpanded ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+                        <span className="hidden-mobile">{headerExpanded ? '접기' : '여행 설정'}</span>
+                    </button>
+                </div>
+                {headerExpanded && (
+                <div className="admin-header-expanded">
                 <div className="trip-manager">
                     <div className="trip-manager-row">
                         <select
@@ -474,6 +496,8 @@ export default function AdminView({ dbData, refreshDb, selectedTripId: initialTr
                         <Download size={16} /> <span className="hidden-mobile">CSV 내보내기</span>
                     </button>
                 </div>
+                </div>
+                )}
             </div>
 
             <div className="admin-content-layout">

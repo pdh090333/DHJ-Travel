@@ -11,14 +11,43 @@
 
 .admin-header {
     display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    background: var(--panel-bg);
+    padding: 0.5rem 0.85rem;
+    border-radius: var(--radius-md);
+    border: 1px solid var(--border-color);
+}
+
+.admin-header-bar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+.admin-header-summary {
+    font-size: 0.95rem;
+    color: var(--text-primary);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.admin-header-summary-period {
+    color: var(--text-secondary);
+    font-weight: 400;
+    font-size: 0.85rem;
+}
+
+.admin-header-expanded {
+    display: flex;
     justify-content: space-between;
     align-items: center;
     flex-wrap: wrap;
     gap: 0.75rem;
-    background: var(--panel-bg);
-    padding: 0.6rem 0.85rem;
-    border-radius: var(--radius-md);
-    border: 1px solid var(--border-color);
+    padding-top: 0.5rem;
+    border-top: 1px solid var(--border-color);
 }
 
 .trip-manager {

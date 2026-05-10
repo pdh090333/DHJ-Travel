@@ -86,12 +86,18 @@
     height: 0.5rem !important;
 }
 
-/* Make minor (15-min) lines lighter than hour lines so quarter-hour
-   subdivisions read at a glance without cluttering the view. */
-.fc-theme-standard .fc-timegrid-slot-minor {
+/* Body lanes: dotted minor (15-min) lines so quarter-hour boundaries
+   read at a glance without competing with hour boundaries. */
+.fc-theme-standard .fc-timegrid-slot-lane.fc-timegrid-slot-minor {
     border-top-style: dotted !important;
     border-top-color: var(--border-color) !important;
     opacity: 0.5;
+}
+
+/* Time-axis (label column): hide the minor subdivision so the time
+   column renders as one continuous cell per hour, not 4 sub-cells. */
+.fc-theme-standard .fc-timegrid-slot-label.fc-timegrid-slot-minor {
+    border-top: 0 !important;
 }
 
 .fc .fc-col-header-cell-cushion {
