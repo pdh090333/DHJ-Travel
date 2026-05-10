@@ -92,14 +92,15 @@
 
 /* slotDuration is 1h, so this controls the per-hour row height.
    min-height (not height) lets expandRows={true} stretch the rows on
-   large monitors. The 2.5rem floor (18 rows × 40px = 720px) is sized
-   so a 1920x1080 laptop with Chrome's tabs+omnibox+bookmarks bar
-   (~725px usable slot area) sits right at the edge — scrollbar appears
-   only when the window shrinks below that, while a 27" QHD desktop
-   stretches each row to ~60px instead. snapDuration='00:15:00' keeps
-   drag/select precision at 15 minutes. */
+   large monitors. The 3rem floor (18 rows × 48px = 864px) is set above
+   the usable slot area on a 1920x1080 laptop (~750px) so each row stays
+   readable instead of being squeezed by expandRows — the timegrid
+   shows a scrollbar covering ~1–2 hours. A 27" QHD desktop has enough
+   height (~1100px) that expandRows stretches rows past the floor to
+   ~60px, no scrollbar. snapDuration='00:15:00' keeps drag/select
+   precision at 15 minutes. */
 .fc .fc-timegrid-slot {
-    min-height: 2.5rem !important;
+    min-height: 3rem !important;
 }
 
 .fc-theme-standard .fc-timegrid-slot-label-cushion,
