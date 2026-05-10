@@ -28,7 +28,13 @@ export default function CalendarView({ dbData, selectedTripId, refreshDb, onDrag
     useEffect(() => { console.log('[Travel]', BUILD_TAG); }, []);
 
     const [selectedActivity, setSelectedActivity] = useState(null);
-    const [viewMode, setViewMode] = useState('week');
+    // Default to 'trip' (여행 기간) when the trip has dates set,
+    // otherwise fall back to 'week'. Lazy init avoids a 'week' → 'trip'
+    // flicker on mount.
+    const [viewMode, setViewMode] = useState(() => {
+        const tr = dbData.trips.find(t => t.id === selectedTripId);
+        return computeTripDuration(tr?.startDate, tr?.endDate) > 0 ? 'trip' : 'week';
+    });
     const wishlistRectRef = useRef(null);
     const wasInsideWishlistRef = useRef(false);
     const ghostElRef = useRef(null);
@@ -84,13 +90,14 @@ export default function CalendarView({ dbData, selectedTripId, refreshDb, onDrag
             endStr = startObj.toISOString().slice(0, 16) + ':00';
         }
 
+        const color = act.color || 'var(--primary)';
         return {
             id: act.id,
             title: act.title || '새 일정',
             start: startStr,
             end: endStr,
-            backgroundColor: 'var(--primary)',
-            borderColor: 'var(--primary)',
+            backgroundColor: color,
+            borderColor: color,
             extendedProps: act
         };
     }).filter(e => e.start);

@@ -2,7 +2,7 @@
 //
 // Schema:
 // Trip = { id, title, startDate, endDate }
-// Activity = { id, tripId, date, startTime, endTime, title, departure, arrival, departureUrl, arrivalUrl, notes }
+// Activity = { id, tripId, date, startTime, endTime, title, departure, arrival, departureUrl, arrivalUrl, notes, imageUrl, reviewUrl, color }
 // Candidate = { id, tripId, title, url, notes, imageUrl }
 
 import {

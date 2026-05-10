@@ -208,7 +208,7 @@
     width: 12px;
     height: 12px;
     border-radius: 50%;
-    background-color: var(--primary);
+    background-color: var(--activity-color, var(--primary));
     border: 2px solid var(--bg-color);
     z-index: 2;
 }

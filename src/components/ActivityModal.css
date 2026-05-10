@@ -131,3 +131,28 @@
     background: #ef4444;
     color: white;
 }
+
+.color-palette {
+    display: flex;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+}
+
+.color-swatch {
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
+    border: 2px solid transparent;
+    cursor: pointer;
+    padding: 0;
+    transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.color-swatch:hover {
+    transform: scale(1.1);
+}
+
+.color-swatch.is-selected {
+    border-color: var(--text-primary);
+    box-shadow: 0 0 0 2px var(--panel-bg), 0 0 0 4px var(--text-primary);
+}

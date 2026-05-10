@@ -131,6 +131,7 @@ export default function ItineraryView({ dbData, selectedTripId }) {
         const eff = getEffectiveDeparture(activity);
         const hasDeparture = !!eff.departure;
         const hasArrival = !!activity.arrival;
+        const cardStyle = activity.color ? { '--activity-color': activity.color } : undefined;
         return (
         <div key={activity.id} className="timeline-item">
             <div className="time-block">
@@ -138,7 +139,7 @@ export default function ItineraryView({ dbData, selectedTripId }) {
                 <span className="time-separator">-</span>
                 <span>{activity.endTime}</span>
             </div>
-            <div className="activity-card">
+            <div className="activity-card" style={cardStyle}>
                 <h3>{activity.title}</h3>
 
                 <div className="locations-wrapper">

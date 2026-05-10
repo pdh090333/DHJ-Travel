@@ -2,6 +2,18 @@ import React, { useState, useEffect } from 'react';
 import { Star } from 'lucide-react';
 import './ActivityModal.css';
 
+export const DEFAULT_ACTIVITY_COLOR = '#4F46E5';
+
+export const COLOR_PALETTE = [
+    { name: '인디고', value: '#4F46E5' },
+    { name: '로즈', value: '#E11D48' },
+    { name: '앰버', value: '#F59E0B' },
+    { name: '에메랄드', value: '#10B981' },
+    { name: '스카이', value: '#0EA5E9' },
+    { name: '바이올렛', value: '#8B5CF6' },
+    { name: '슬레이트', value: '#64748B' }
+];
+
 export default function ActivityModal({ activity, onClose, onSave, onDelete, onMoveToCandidates }) {
     const [formData, setFormData] = useState({
         title: '',
@@ -14,7 +26,8 @@ export default function ActivityModal({ activity, onClose, onSave, onDelete, onM
         arrivalUrl: '',
         notes: '',
         imageUrl: '',
-        reviewUrl: ''
+        reviewUrl: '',
+        color: DEFAULT_ACTIVITY_COLOR
     });
 
     useEffect(() => {
@@ -28,7 +41,8 @@ export default function ActivityModal({ activity, onClose, onSave, onDelete, onM
                 arrivalUrl: activity.arrivalUrl || '',
                 notes: activity.notes || '',
                 imageUrl: activity.imageUrl || '',
-                reviewUrl: activity.reviewUrl || ''
+                reviewUrl: activity.reviewUrl || '',
+                color: activity.color || DEFAULT_ACTIVITY_COLOR
             });
         }
     }, [activity]);
@@ -137,6 +151,23 @@ export default function ActivityModal({ activity, onClose, onSave, onDelete, onM
                     <div className="form-group">
                         <label>구글 맵 리뷰 링크 (선택)</label>
                         <input type="url" name="reviewUrl" value={formData.reviewUrl} onChange={handleChange} placeholder="https://maps.app.goo.gl/..." />
+                    </div>
+
+                    <div className="form-group">
+                        <label>색상</label>
+                        <div className="color-palette">
+                            {COLOR_PALETTE.map(c => (
+                                <button
+                                    key={c.value}
+                                    type="button"
+                                    className={`color-swatch${formData.color === c.value ? ' is-selected' : ''}`}
+                                    style={{ background: c.value }}
+                                    onClick={() => setFormData(prev => ({ ...prev, color: c.value }))}
+                                    title={c.name}
+                                    aria-label={`색상: ${c.name}`}
+                                />
+                            ))}
+                        </div>
                     </div>
 
                     <div className="form-group">
