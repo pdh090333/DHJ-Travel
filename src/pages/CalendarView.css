@@ -82,6 +82,14 @@
     border-color: var(--border-color) !important;
 }
 
+/* Override FC's internal border color variable so the OUTER scrollgrid
+   table border (top/left edge of the calendar) matches the inner cell
+   borders. Without this, FC's default light-gray --fc-border-color shows
+   as a bright line on dark mode while td/th borders use --border-color. */
+.fc {
+    --fc-border-color: var(--border-color);
+}
+
 /* slotDuration is 1h, so this height is the per-hour row height.
    18 hour rows × 1.4rem ≈ 22.4rem ≈ 360px — comfortably fits the
    calendar area on every viewport. snapDuration='00:15:00' keeps
