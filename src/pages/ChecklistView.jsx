@@ -1,9 +1,9 @@
 import React, { useState } from 'react';
-import { Plus, Trash2, ListChecks } from 'lucide-react';
+import { Plus, Trash2, ListChecks, Plane, Calendar, ChevronRight, ChevronsLeft } from 'lucide-react';
 import { saveChecklistItem, deleteChecklistItem, generateId } from '../db';
 import './ChecklistView.css';
 
-export default function ChecklistView({ dbData, selectedTripId, refreshDb }) {
+export default function ChecklistView({ dbData, selectedTripId, refreshDb, onSelectTrip }) {
     const currentTrip = dbData.trips.find(t => t.id === selectedTripId);
     const items = dbData.checklists
         .filter(c => c.tripId === selectedTripId)
@@ -59,6 +59,59 @@ export default function ChecklistView({ dbData, selectedTripId, refreshDb }) {
         }
     };
 
+    // selectedTripId 없으면 — 여행 선택 화면을 체크리스트 페이지 안에서 직접 노출.
+    // App.jsx에서 onSelectTrip = setSelectedTripId 로 raw setter를 받아 현재 view('checklist') 유지.
+    if (!selectedTripId) {
+        return (
+            <div className="checklist-page">
+                <div className="checklist-intro">
+                    <div className="checklist-title-row">
+                        <ListChecks size={22} color="var(--primary)" />
+                        <h2 className="checklist-title">체크리스트</h2>
+                    </div>
+                    <p className="checklist-intro-desc">
+                        체크리스트를 볼 여행을 선택하세요.
+                    </p>
+                </div>
+
+                {dbData.trips.length === 0 ? (
+                    <div className="checklist-empty">
+                        먼저 여행을 만들어주세요. 상단 로고를 눌러 메인으로 이동 → "새로운 여행 추가".
+                    </div>
+                ) : (
+                    <div className="trip-grid">
+                        {dbData.trips.map(trip => {
+                            const tripItemCount = dbData.checklists.filter(c => c.tripId === trip.id).length;
+                            const tripDoneCount = dbData.checklists.filter(c => c.tripId === trip.id && c.completed).length;
+                            return (
+                                <div key={trip.id} className="trip-card" onClick={() => onSelectTrip(trip.id)}>
+                                    <div className="trip-card-icon">
+                                        <Plane size={32} />
+                                    </div>
+                                    <div className="trip-card-content">
+                                        <h3>{trip.title}</h3>
+                                        <div className="trip-card-date">
+                                            <Calendar size={14} />
+                                            <span>{trip.startDate || '날짜 미정'} - {trip.endDate || '날짜 미정'}</span>
+                                        </div>
+                                        {tripItemCount > 0 && (
+                                            <div className="trip-card-checklist-count">
+                                                체크리스트 {tripDoneCount} / {tripItemCount} 완료
+                                            </div>
+                                        )}
+                                    </div>
+                                    <div className="trip-card-arrow">
+                                        <ChevronRight size={20} />
+                                    </div>
+                                </div>
+                            );
+                        })}
+                    </div>
+                )}
+            </div>
+        );
+    }
+
     const totalCount = items.length;
     const doneCount = items.filter(i => i.completed).length;
 
@@ -69,11 +122,21 @@ export default function ChecklistView({ dbData, selectedTripId, refreshDb }) {
                     <ListChecks size={22} color="var(--primary)" />
                     <h2 className="checklist-title">{currentTrip?.title || '여행'} 체크리스트</h2>
                 </div>
-                {totalCount > 0 && (
-                    <div className="checklist-progress">
-                        {doneCount} / {totalCount} 완료
-                    </div>
-                )}
+                <div className="checklist-header-right">
+                    {totalCount > 0 && (
+                        <div className="checklist-progress">
+                            {doneCount} / {totalCount} 완료
+                        </div>
+                    )}
+                    <button
+                        className="btn btn-ghost checklist-change-trip"
+                        onClick={() => onSelectTrip(null)}
+                        title="다른 여행 선택"
+                    >
+                        <ChevronsLeft size={16} />
+                        <span className="hidden-mobile">다른 여행</span>
+                    </button>
+                </div>
             </div>
 
             <div className="checklist-add-row">

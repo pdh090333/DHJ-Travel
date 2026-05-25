@@ -213,17 +213,18 @@ function App() {
             selectedTripId={selectedTripId}
             onUnschedule={handleUnscheduleActivity}
           />
-        ) : !selectedTripId ? (
-          <TripSelect
-            trips={dbData.trips}
-            onSelectTrip={handleSelectTrip}
-            onAddTrip={handleAddTrip}
-          />
         ) : currentView === 'checklist' ? (
           <ChecklistView
             dbData={dbData}
             selectedTripId={selectedTripId}
             refreshDb={refreshDb}
+            onSelectTrip={setSelectedTripId}
+          />
+        ) : !selectedTripId ? (
+          <TripSelect
+            trips={dbData.trips}
+            onSelectTrip={handleSelectTrip}
+            onAddTrip={handleAddTrip}
           />
         ) : (
           <ItineraryView dbData={dbData} selectedTripId={selectedTripId} />

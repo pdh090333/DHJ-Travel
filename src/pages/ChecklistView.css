@@ -16,6 +16,44 @@
     flex-wrap: wrap;
 }
 
+.checklist-header-right {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.checklist-change-trip {
+    color: var(--text-secondary);
+    padding: 0.4rem 0.7rem;
+    font-size: 0.85rem;
+}
+
+.checklist-change-trip:hover {
+    color: var(--primary);
+}
+
+.checklist-intro {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    padding: 0.5rem 0 1rem;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.checklist-intro-desc {
+    color: var(--text-secondary);
+    margin: 0;
+    font-size: 0.95rem;
+}
+
+.trip-card-checklist-count {
+    margin-top: 0.35rem;
+    font-size: 0.8rem;
+    color: var(--primary);
+    font-weight: 600;
+    z-index: 1;
+}
+
 .checklist-title-row {
     display: flex;
     align-items: center;
