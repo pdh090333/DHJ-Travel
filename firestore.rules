@@ -26,5 +26,8 @@ service cloud.firestore {
     match /candidates/{candidateId} {
       allow read, write: if isAllowed();
     }
+    match /checklists/{checklistId} {
+      allow read, write: if isAllowed();
+    }
   }
 }

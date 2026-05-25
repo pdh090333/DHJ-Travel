@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import Header from './components/Header';
 import ItineraryView from './pages/ItineraryView';
 import AdminView from './pages/AdminView';
+import ChecklistView from './pages/ChecklistView';
 import TripSelect from './pages/TripSelect';
 import LoginView from './pages/LoginView';
 import { loadDB, ensureDefaultTrip, generateId, saveTrip, deleteTrip, DEFAULT_TAGS } from './db';
@@ -11,7 +12,7 @@ import './index.css';
 function App() {
   const [currentView, setCurrentView] = useState('itinerary');
   const [selectedTripId, setSelectedTripId] = useState(null);
-  const [dbData, setDbData] = useState({ trips: [], activities: [], candidates: [] });
+  const [dbData, setDbData] = useState({ trips: [], activities: [], candidates: [], checklists: [] });
   const [loading, setLoading] = useState(false);
 
   const [authReady, setAuthReady] = useState(false);
@@ -157,7 +158,7 @@ function App() {
       await signOutUser();
       setSelectedTripId(null);
       setCurrentView('itinerary');
-      setDbData({ trips: [], activities: [], candidates: [] });
+      setDbData({ trips: [], activities: [], candidates: [], checklists: [] });
     } catch (e) {
       console.error('Sign out failed:', e);
     }
@@ -212,16 +213,20 @@ function App() {
             selectedTripId={selectedTripId}
             onUnschedule={handleUnscheduleActivity}
           />
+        ) : !selectedTripId ? (
+          <TripSelect
+            trips={dbData.trips}
+            onSelectTrip={handleSelectTrip}
+            onAddTrip={handleAddTrip}
+          />
+        ) : currentView === 'checklist' ? (
+          <ChecklistView
+            dbData={dbData}
+            selectedTripId={selectedTripId}
+            refreshDb={refreshDb}
+          />
         ) : (
-          !selectedTripId ? (
-            <TripSelect
-              trips={dbData.trips}
-              onSelectTrip={handleSelectTrip}
-              onAddTrip={handleAddTrip}
-            />
-          ) : (
-            <ItineraryView dbData={dbData} selectedTripId={selectedTripId} />
-          )
+          <ItineraryView dbData={dbData} selectedTripId={selectedTripId} />
         )}
       </main>
     </>
