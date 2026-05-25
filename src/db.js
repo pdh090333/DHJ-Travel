@@ -11,6 +11,7 @@
 //     backward compatibility. Older records where arrival ≠ title keep their value until
 //     the activity is edited.
 // Candidate = { id, tripId, title, url, notes, imageUrl }
+// ChecklistItem = { id, tripId, title, completed, createdAt }
 
 export const COLOR_PALETTE = [
     { name: '인디고', value: '#4F46E5' },
@@ -54,6 +55,7 @@ import { db } from './firebase';
 const TRIPS_COL = 'trips';
 const ACTIVITIES_COL = 'activities';
 const CANDIDATES_COL = 'candidates';
+const CHECKLISTS_COL = 'checklists';
 
 export const generateId = () => {
     if (typeof crypto !== 'undefined' && crypto.randomUUID) {
@@ -64,16 +66,18 @@ export const generateId = () => {
 
 // ─── Load ──────────────────────────────────────────────
 export const loadDB = async () => {
-    const [tripsSnap, activitiesSnap, candidatesSnap] = await Promise.all([
+    const [tripsSnap, activitiesSnap, candidatesSnap, checklistsSnap] = await Promise.all([
         getDocs(collection(db, TRIPS_COL)),
         getDocs(collection(db, ACTIVITIES_COL)),
-        getDocs(collection(db, CANDIDATES_COL))
+        getDocs(collection(db, CANDIDATES_COL)),
+        getDocs(collection(db, CHECKLISTS_COL))
     ]);
 
     const trips = tripsSnap.docs.map(d => ({ id: d.id, ...d.data() }));
     const activities = activitiesSnap.docs.map(d => ({ id: d.id, ...d.data() }));
     const candidates = candidatesSnap.docs.map(d => ({ id: d.id, ...d.data() }));
-    return { trips, activities, candidates };
+    const checklists = checklistsSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+    return { trips, activities, candidates, checklists };
 };
 
 // ─── Activity: single-doc ops (preferred) ──────────────
@@ -112,15 +116,17 @@ export const saveTrip = async (trip) => {
 };
 
 export const deleteTrip = async (tripId) => {
-    const [actsSnap, candsSnap] = await Promise.all([
+    const [actsSnap, candsSnap, checksSnap] = await Promise.all([
         getDocs(query(collection(db, ACTIVITIES_COL), where('tripId', '==', tripId))),
-        getDocs(query(collection(db, CANDIDATES_COL), where('tripId', '==', tripId)))
+        getDocs(query(collection(db, CANDIDATES_COL), where('tripId', '==', tripId))),
+        getDocs(query(collection(db, CHECKLISTS_COL), where('tripId', '==', tripId)))
     ]);
 
     const batch = writeBatch(db);
     batch.delete(doc(db, TRIPS_COL, tripId));
     actsSnap.docs.forEach(d => batch.delete(d.ref));
     candsSnap.docs.forEach(d => batch.delete(d.ref));
+    checksSnap.docs.forEach(d => batch.delete(d.ref));
 
     await batch.commit();
 };
@@ -132,6 +138,17 @@ export const saveCandidate = async (candidate) => {
 
 export const deleteCandidate = async (candidateId) => {
     await deleteDoc(doc(db, CANDIDATES_COL, candidateId));
+};
+
+// ─── Checklists ────────────────────────────────────────
+export const saveChecklistItem = async (item) => {
+    if (!item?.id) throw new Error('saveChecklistItem: id required');
+    if (!item?.tripId) throw new Error('saveChecklistItem: tripId required');
+    await setDoc(doc(db, CHECKLISTS_COL, item.id), item);
+};
+
+export const deleteChecklistItem = async (itemId) => {
+    await deleteDoc(doc(db, CHECKLISTS_COL, itemId));
 };
 
 // ─── Bootstrap ─────────────────────────────────────────

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Settings, Map as MapIcon, CalendarDays, ArrowLeft, LogOut, Sun, Moon, Monitor } from 'lucide-react';
+import { Settings, Map as MapIcon, CalendarDays, CheckSquare, ArrowLeft, LogOut, Sun, Moon, Monitor } from 'lucide-react';
 import { getThemePreference, setThemePreference, THEME_CYCLE } from '../theme.js';
 
 const THEME_LABEL = { auto: '자동', light: '라이트', dark: '다크' };
@@ -55,6 +55,13 @@ export default function Header({ currentView, onViewChange, onBackToTrips, selec
                     >
                         <Settings size={18} />
                         <span className="hidden-mobile">일정 수립</span>
+                    </button>
+                    <button
+                        className={`btn ${currentView === 'checklist' ? 'btn-primary' : 'btn-ghost'}`}
+                        onClick={() => onViewChange('checklist')}
+                    >
+                        <CheckSquare size={18} />
+                        <span className="hidden-mobile">체크리스트</span>
                     </button>
                     <ThemeToggle />
                     {user && (
