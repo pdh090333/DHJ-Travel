@@ -27,7 +27,10 @@ export default function CandidateModal({ candidate, onClose, onSave, onDelete })
 
     const handleSubmit = (e) => {
         e.preventDefault();
-        onSave(formData);
+        // required 는 공백만 있는 값을 통과시킨다
+        const title = formData.title.trim();
+        if (!title) return;
+        onSave({ ...formData, title });
     };
 
     if (!candidate) return null;
