@@ -11,6 +11,8 @@
 //     backward compatibility. Older records where arrival ≠ title keep their value until
 //     the activity is edited.
 // Candidate = { id, tripId, title, url, notes, imageUrl }
+//   - CandidateModal 이 추가/수정을 모두 처리한다. saveCandidate 는 setDoc 전체
+//     덮어쓰기라 기존 id 로 호출하면 그대로 update 가 된다.
 // ChecklistItem = { id, tripId, title, completed, createdAt }
 
 export const COLOR_PALETTE = [
