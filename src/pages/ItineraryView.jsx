@@ -288,9 +288,19 @@ export default function ItineraryView({ dbData, selectedTripId }) {
                         {dbData.candidates
                             .filter(c => c.tripId === selectedTripId)
                             .map(candidate => (
-                                <div key={candidate.id} className="wishlist-card">
+                                <div
+                                    key={candidate.id}
+                                    className="wishlist-card"
+                                    style={(() => {
+                                        const c = resolveActivityColor(candidate, currentTrip?.tags);
+                                        return c ? { '--activity-color': c } : undefined;
+                                    })()}
+                                >
                                     <div className="wishlist-card-content">
-                                        <h4>{candidate.title}</h4>
+                                        <h4>
+                                            {candidate.tag && <span className="activity-tag">{candidate.tag}</span>}
+                                            {candidate.title}
+                                        </h4>
                                         {candidate.imageUrl && (
                                             <div className="wishlist-thumbnail-card">
                                                 <img src={candidate.imageUrl} alt={candidate.title} />

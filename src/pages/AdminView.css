@@ -428,6 +428,19 @@
     overflow-wrap: anywhere;
 }
 
+/* .candidate-info 가 column flex 라 align-self 없이는 pill 이 카드 폭만큼 늘어난다.
+   배경색은 태그 색상이므로 JSX 에서 인라인으로 준다 (ItineraryView 의 .activity-tag 와 동일한 방식). */
+.candidate-tag {
+    align-self: flex-start;
+    font-size: 0.68rem;
+    font-weight: 700;
+    color: white;
+    padding: 0.1rem 0.4rem;
+    border-radius: 4px;
+    letter-spacing: 0.02em;
+    line-height: 1.4;
+}
+
 .candidate-actions {
     display: flex;
     gap: 0.125rem;

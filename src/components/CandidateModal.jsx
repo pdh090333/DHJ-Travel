@@ -9,13 +9,22 @@ import './ActivityModal.css';
 // ActivityModal 처럼 useEffect 로 시딩하지 않고 lazy initializer 를 쓴다.
 // AdminView 가 key={candidate.id} 로 마운트하므로 대상이 바뀌면 리마운트되어
 // 다시 시딩된다 — 결과는 같으면서 react-hooks/set-state-in-effect 를 피한다.
-export default function CandidateModal({ candidate, onClose, onSave, onDelete }) {
+export default function CandidateModal({ candidate, onClose, onSave, onDelete, availableTags = [] }) {
     const [formData, setFormData] = useState(() => ({
         title: candidate?.title || '',
         url: candidate?.url || '',
         imageUrl: candidate?.imageUrl || '',
-        notes: candidate?.notes || ''
+        notes: candidate?.notes || '',
+        tag: candidate?.tag || ''
     }));
+
+    // availableTags 는 [{name, color}, ...]. 드롭다운은 이름만 필요하다.
+    const tagNames = availableTags.map(t => t?.name || t);
+    // 저장된 태그가 여행의 태그 목록에서 사라진 경우(taxonomy 에서 삭제됨)에도
+    // 옵션으로 남겨서 드롭다운이 값을 조용히 날려버리지 않게 한다.
+    const tagOptions = formData.tag && !tagNames.includes(formData.tag)
+        ? [...tagNames, formData.tag]
+        : tagNames;
 
     const handleChange = (e) => {
         const { name, value } = e.target;
@@ -44,17 +53,28 @@ export default function CandidateModal({ candidate, onClose, onSave, onDelete })
                     <button className="btn-close" onClick={onClose}>&times;</button>
                 </div>
                 <form onSubmit={handleSubmit} className="modal-body">
-                    <div className="form-group">
-                        <label>장소 이름</label>
-                        <input
-                            type="text"
-                            name="title"
-                            value={formData.title}
-                            onChange={handleChange}
-                            placeholder="센소지, 이치란 라멘 등"
-                            autoFocus
-                            required
-                        />
+                    <div className="form-row">
+                        <div className="form-group" style={{ flex: '0 0 8rem' }}>
+                            <label>태그</label>
+                            <select name="tag" value={formData.tag} onChange={handleChange}>
+                                <option value="">(없음)</option>
+                                {tagOptions.map(t => (
+                                    <option key={t} value={t}>{t}</option>
+                                ))}
+                            </select>
+                        </div>
+                        <div className="form-group">
+                            <label>장소 이름</label>
+                            <input
+                                type="text"
+                                name="title"
+                                value={formData.title}
+                                onChange={handleChange}
+                                placeholder="센소지, 이치란 라멘 등"
+                                autoFocus
+                                required
+                            />
+                        </div>
                     </div>
 
                     <div className="form-group">
