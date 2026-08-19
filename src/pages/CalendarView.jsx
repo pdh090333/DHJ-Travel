@@ -166,7 +166,7 @@ export default function CalendarView({ dbData, selectedTripId, refreshDb, onDrag
             endTime: new Date(local.getTime() + 3600000).toISOString().slice(11, 16),
             departure: '', arrival: candidateData.title, departureUrl: '',
             arrivalUrl: candidateData.url || '', notes: candidateData.notes || '',
-            imageUrl: candidateData.imageUrl || ''
+            imageUrl: candidateData.imageUrl || '', tag: candidateData.tag || ''
         };
         try {
             const { deleteCandidate } = await import('../db');

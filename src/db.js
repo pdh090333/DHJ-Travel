@@ -10,9 +10,12 @@
 //     (prev.arrival → next departure), and CSV export still ships an `arrival` column for
 //     backward compatibility. Older records where arrival ≠ title keep their value until
 //     the activity is edited.
-// Candidate = { id, tripId, title, url, notes, imageUrl }
+// Candidate = { id, tripId, title, url, notes, imageUrl, tag }
 //   - CandidateModal 이 추가/수정을 모두 처리한다. saveCandidate 는 setDoc 전체
 //     덮어쓰기라 기존 id 로 호출하면 그대로 update 가 된다.
+//   - `tag` 는 Activity.tag 와 같은 의미(Trip.tags 의 name 참조)라
+//     resolveActivityColor 를 후보지에도 그대로 쓸 수 있고, 캘린더 <-> 위시리스트
+//     드래그 시 태그가 그대로 따라간다.
 // ChecklistItem = { id, tripId, title, completed, createdAt }
 
 export const COLOR_PALETTE = [

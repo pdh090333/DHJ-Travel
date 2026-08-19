@@ -131,7 +131,8 @@ function App() {
       title: activityToMove.title,
       url: activityToMove.arrivalUrl || activityToMove.departureUrl || '',
       notes: activityToMove.notes || '',
-      imageUrl: activityToMove.imageUrl || ''
+      imageUrl: activityToMove.imageUrl || '',
+      tag: activityToMove.tag || ''
     };
 
     setDbData(prev => ({

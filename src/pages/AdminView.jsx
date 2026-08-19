@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { replaceTripActivities, exportToCSV, parseCSV, generateId, saveTrip, deleteTrip, saveCandidate, deleteCandidate, saveActivity, DEFAULT_TAGS, COLOR_PALETTE, DEFAULT_TAG_COLOR, normalizeTags } from '../db';
+import { replaceTripActivities, exportToCSV, parseCSV, generateId, saveTrip, deleteTrip, saveCandidate, deleteCandidate, saveActivity, DEFAULT_TAGS, COLOR_PALETTE, DEFAULT_TAG_COLOR, normalizeTags, resolveActivityColor } from '../db';
 import { Download, Upload, Plus, Trash2, Save, Trash, MapPin, Link as LinkIcon, ExternalLink, Tag, X, ChevronDown, ChevronUp, Pencil } from 'lucide-react';
 import { Draggable } from '@fullcalendar/interaction';
 import CalendarView from './CalendarView';
@@ -198,7 +198,8 @@ export default function AdminView({ dbData, refreshDb, selectedTripId: initialTr
             title: '',
             url: '',
             notes: '',
-            imageUrl: ''
+            imageUrl: '',
+            tag: ''
         });
     };
 
@@ -292,6 +293,11 @@ export default function AdminView({ dbData, refreshDb, selectedTripId: initialTr
         const affected = dbData.activities.filter(
             a => a.tripId === selectedTripId && a.tag === oldName
         );
+        // 후보지도 같은 태그 체계를 쓰므로 함께 갱신한다. 빠뜨리면 이름만 바뀌고
+        // 후보지의 tag 는 옛 이름에 남아 색상 해석이 실패한다.
+        const affectedCandidates = (dbData.candidates || []).filter(
+            c => c.tripId === selectedTripId && c.tag === oldName
+        );
         await Promise.all([
             saveTrip({
                 ...currentTrip,
@@ -300,7 +306,8 @@ export default function AdminView({ dbData, refreshDb, selectedTripId: initialTr
                 endDate: tripEndDate,
                 tags: newTags
             }),
-            ...affected.map(a => saveActivity({ ...a, tag: trimmed }))
+            ...affected.map(a => saveActivity({ ...a, tag: trimmed })),
+            ...affectedCandidates.map(c => saveCandidate({ ...c, tag: trimmed }))
         ]);
         await refreshDb();
     };
@@ -606,6 +613,12 @@ export default function AdminView({ dbData, refreshDb, selectedTripId: initialTr
                                         </div>
                                     )}
                                     <div className="candidate-info">
+                                        {c.tag && (
+                                            <span
+                                                className="candidate-tag"
+                                                style={{ background: resolveActivityColor(c, currentTrip?.tags) || 'var(--primary)' }}
+                                            >{c.tag}</span>
+                                        )}
                                         <span className="candidate-title">{c.title}</span>
                                         {c.url && <a href={c.url} target="_blank" rel="noopener noreferrer"><ExternalLink size={14} /></a>}
                                     </div>
@@ -644,6 +657,7 @@ export default function AdminView({ dbData, refreshDb, selectedTripId: initialTr
                     onClose={() => setEditingCandidate(null)}
                     onSave={handleSaveCandidate}
                     onDelete={handleDeleteCandidate}
+                    availableTags={currentTags}
                 />
             )}
         </div>
