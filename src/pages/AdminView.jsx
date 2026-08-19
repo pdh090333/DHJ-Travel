@@ -54,53 +54,25 @@ export default function AdminView({ dbData, refreshDb, selectedTripId: initialTr
     // FullCalendar's events array and snapped the drag mirror away from
     // the cursor. Direct DOM toggling sidesteps React entirely.
     const sidebarRef = useRef(null);
-    const fcMirrorCleanupRef = useRef([]);
 
-    // FullCalendar's drag mirror is positioned in the calendar grid's
-    // local coordinate frame. Once the cursor leaves the calendar and
-    // enters the wishlist the mirror lands ~500px off-cursor and can't
-    // be coaxed back. Hide it while over the wishlist — the sidebar's
-    // own drop-placeholder + outline give enough feedback, and the drop
-    // position is read from the cursor in handleEventDragStop anyway.
+    // v21: 미러를 더 이상 건드리지 않는다.
     //
-    // We hide via inline style (stronger than any FC inline positioning)
-    // and cast a wide net on selectors because FC versions name the
-    // mirror element differently. If our selector misses, we log every
-    // floating element in the calendar so we can pin it down.
-    const hideFCMirror = () => {
-        const els = document.querySelectorAll(
-            '.fc-event-dragging, [class*="fc-event-mirror"], .fc-helper'
-        );
-        if (!els.length) {
-            const seen = new Set();
-            document.querySelectorAll('.fc *').forEach(el => {
-                const cs = window.getComputedStyle(el);
-                if (cs.position === 'absolute' || cs.position === 'fixed') {
-                    seen.add(el.className || el.tagName);
-                }
-            });
-            console.warn('[wishlist] FC mirror not matched. Floating .fc descendants:', [...seen]);
-            return;
-        }
-        els.forEach(el => {
-            if (el.style.display === 'none') return;
-            fcMirrorCleanupRef.current.push([el, el.style.display]);
-            el.style.display = 'none';
-        });
-    };
-
-    const showFCMirror = () => {
-        fcMirrorCleanupRef.current.forEach(([el, prev]) => {
-            el.style.display = prev || '';
-        });
-        fcMirrorCleanupRef.current = [];
-    };
-
+    // v8~v20 이 20번 실패한 진짜 원인은 FC 가 아니라 CSS 였다. 미러는
+    // position:fixed 인데 FC 가 이걸 `elementClosest(origTarget, '.fc')` 아래에
+    // 붙인다(interaction/index.js:1255). 그런데 그 조상인
+    // `<main class="container animate-slide-up">` 는 `animation: slideUp ...
+    // forwards` 가 끝난 뒤에도 `transform: translateY(0)` 을 남기고,
+    // **transform 이 걸린 요소는 position:fixed 의 포함 블록이 된다.**
+    // 그래서 미러의 left/top 이 viewport 가 아니라 container 기준으로 풀렸고,
+    // container 가 가운데 정렬이라 창이 넓을수록(maximized) 오차가 커졌다.
+    // "미러가 커서와 어긋난다"는 증상의 전부가 이것이었다.
+    //
+    // 해법은 CalendarView 의 `fixedMirrorParent={document.body}` — 미러를
+    // body 에 붙여 포함 블록을 viewport 로 되돌린다. 미러가 커서를 정확히
+    // 따라오므로 여기서 숨길 이유가 사라졌고, 숨기기(=미러 DOM 조작)야말로
+    // FC cleanup 을 깨뜨려 다음 드래그를 죽이던 원인이었다.
     const setSidebarDragOver = (over) => {
         sidebarRef.current?.classList.toggle('is-dragging-over', !!over);
-        document.body.classList.toggle('hide-fc-mirror', !!over);
-        if (over) hideFCMirror();
-        else showFCMirror();
     };
 
     // Initialize Draggable for candidates

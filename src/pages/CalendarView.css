@@ -182,16 +182,8 @@
     z-index: 9999 !important;
 }
 
-/* Hide FullCalendar's drag mirror while the cursor is over the wishlist.
-   The mirror's left/top is computed in the calendar grid's local frame
-   and lands hundreds of px off-cursor once the pointer crosses out of
-   the calendar. The wishlist's own drop-placeholder + sidebar outline
-   give enough visual feedback there. Toggled from AdminView when the
-   wishlist boundary is crossed. */
-/* Mirror element is the source event cloned + `.fc-event-dragging`
-   added (FC source: ElementMirror.getMirrorEl). FC never adds
-   `.fc-event-mirror` in this build, so selectors targeting that class
-   silently miss. */
-body.hide-fc-mirror .fc-event-dragging {
-    display: none !important;
-}
+/* v21: 미러를 숨기던 규칙 제거.
+   미러가 커서와 어긋난 원인은 FC 가 아니라 transform 조상이 만든
+   position:fixed 포함 블록이었고, CalendarView 의 fixedMirrorParent 로
+   해결했다. 이제 미러가 커서를 정확히 따라오므로 숨길 필요가 없다.
+   (자세한 경위는 AdminView 의 setSidebarDragOver 위 주석) */
