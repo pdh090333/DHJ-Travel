@@ -130,7 +130,8 @@ function App() {
       tripId,
       title: activityToMove.title,
       url: activityToMove.arrivalUrl || activityToMove.departureUrl || '',
-      notes: activityToMove.notes || ''
+      notes: activityToMove.notes || '',
+      imageUrl: activityToMove.imageUrl || ''
     };
 
     setDbData(prev => ({

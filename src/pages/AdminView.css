@@ -285,30 +285,35 @@
 .sidebar-header h3 {
     font-size: 1rem;
     font-weight: 700;
+    /* + 버튼을 오른쪽 끝으로 밀어낸다 */
+    flex: 1;
 }
 
-.candidate-add-form {
-    padding: 1rem;
+.candidate-add-btn {
+    background: transparent;
+    border: none;
+    color: var(--text-secondary);
+    cursor: pointer;
+    padding: 0.25rem;
+    border-radius: 4px;
     display: flex;
-    flex-direction: column;
-    gap: 0.75rem;
-    border-bottom: 1px solid var(--border-color);
-    background: rgba(var(--primary), 0.02);
+    align-items: center;
+    transition: all 0.2s;
 }
 
-.candidate-add-form input,
-.candidate-add-form textarea {
-    padding: 0.6rem;
-    border-radius: var(--radius-md);
-    border: 1px solid var(--border-color);
-    background: var(--panel-bg);
-    color: var(--text-primary);
-    font-size: 0.9rem;
+.candidate-add-btn:hover:not(:disabled) {
+    color: var(--primary);
+    background: rgba(79, 70, 229, 0.1);
 }
 
-.candidate-add-form textarea {
-    resize: none;
-    height: 60px;
+.candidate-add-btn:disabled {
+    opacity: 0.35;
+    cursor: not-allowed;
+}
+
+/* 드래그 오버 시 헤더가 primary 배경으로 반전되므로 버튼 색도 따라간다 */
+.candidates-sidebar.is-dragging-over .candidate-add-btn {
+    color: inherit;
 }
 
 .btn-sm {
@@ -342,10 +347,20 @@
     display: flex;
     justify-content: space-between;
     align-items: flex-start;
-    cursor: grab;
     /* explicit list — `transition: all` interpolates transform every
        frame during drag and was a paint-storm contributor */
     transition: border-color 0.15s ease, transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+/* 실제 드래그 대상. 액션 버튼은 이 래퍼 바깥(형제)에 있어야
+   FullCalendar 의 closest('.candidate-item-draggable') 가 걸리지 않는다. */
+.candidate-item-draggable {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.5rem;
+    flex: 1;
+    min-width: 0;
+    cursor: grab;
 }
 
 .candidate-item:hover {
@@ -366,8 +381,37 @@
     border-color: var(--border-color);
 }
 
-.candidate-item:active {
+.candidate-item-draggable:active {
     cursor: grabbing;
+}
+
+/* FC 의 드래그 미러는 subjectEl 의 cloneNode(true) 에 .fc-event-dragging 을
+   붙여 body 에 append 한 것이다 (interaction ElementMirror.getMirrorEl).
+   카드 테두리·배경은 바깥 .candidate-item 에 있어 클론에 안 들어오므로,
+   이 규칙이 없으면 미러가 배경 없는 맨 텍스트로 끌린다. */
+.candidate-item-draggable.fc-event-dragging {
+    padding: 0.75rem;
+    background: var(--bg-color);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-md);
+    box-shadow: var(--shadow-lg);
+    opacity: 0.95;
+}
+
+.candidate-thumbnail {
+    width: 44px;
+    height: 44px;
+    flex-shrink: 0;
+    border-radius: var(--radius-md);
+    overflow: hidden;
+    background: var(--border-color);
+}
+
+.candidate-thumbnail img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
 }
 
 .candidate-info {
@@ -375,14 +419,22 @@
     flex-direction: column;
     gap: 0.25rem;
     flex: 1;
+    min-width: 0;
 }
 
 .candidate-title {
     font-weight: 600;
     font-size: 0.95rem;
+    overflow-wrap: anywhere;
 }
 
-.delete-candidate-btn {
+.candidate-actions {
+    display: flex;
+    gap: 0.125rem;
+    flex-shrink: 0;
+}
+
+.candidate-action-btn {
     background: transparent;
     border: none;
     color: var(--text-secondary);
@@ -393,10 +445,15 @@
     transition: all 0.2s;
 }
 
-.delete-candidate-btn:hover {
+.candidate-action-btn:hover {
+    color: var(--primary);
+    background: rgba(79, 70, 229, 0.1);
+    opacity: 1;
+}
+
+.candidate-action-btn.is-danger:hover {
     color: var(--danger);
     background: rgba(239, 68, 68, 0.1);
-    opacity: 1;
 }
 
 @media (max-width: 1024px) {

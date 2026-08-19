@@ -165,7 +165,8 @@ export default function CalendarView({ dbData, selectedTripId, refreshDb, onDrag
             date: local.toISOString().split('T')[0], startTime: local.toISOString().slice(11, 16),
             endTime: new Date(local.getTime() + 3600000).toISOString().slice(11, 16),
             departure: '', arrival: candidateData.title, departureUrl: '',
-            arrivalUrl: candidateData.url || '', notes: candidateData.notes || ''
+            arrivalUrl: candidateData.url || '', notes: candidateData.notes || '',
+            imageUrl: candidateData.imageUrl || ''
         };
         try {
             const { deleteCandidate } = await import('../db');
@@ -329,6 +330,15 @@ export default function CalendarView({ dbData, selectedTripId, refreshDb, onDrag
                     eventReceive={handleEventReceive} eventDragStop={handleEventDragStop}
                     eventDragStart={handleEventDragStart}
                     droppable={true} height="100%" locale="ko"
+                    // 미러를 body 에 붙여 position:fixed 포함 블록을 viewport 로 되돌린다.
+                    // 기본값은 `elementClosest(origTarget, '.fc')` 인데(interaction/index.js:1255),
+                    // 그 조상 `<main class="container animate-slide-up">` 에 transform 이 남아
+                    // 미러가 커서와 어긋났다. (AdminView 의 v21 주석 참고)
+                    fixedMirrorParent={typeof document !== 'undefined' ? document.body : undefined}
+                    // 위시리스트에 드롭하면 캘린더 밖이라 FC 가 revert 로 처리해
+                    // 500ms 동안 미러가 원래 일정 자리(좌측)로 날아간다. 0 이면
+                    // doRevertAnimation 자체를 건너뛴다(interaction/index.js:332).
+                    dragRevertDuration={0}
                 />
             </div>
             {selectedActivity && (

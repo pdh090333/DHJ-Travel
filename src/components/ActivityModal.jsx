@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Star, Info, ChevronDown, ChevronUp } from 'lucide-react';
+import { extractDirectImageUrl } from '../utils/imageUtils';
 import './ActivityModal.css';
 
 export default function ActivityModal({ activity, onClose, onSave, onDelete, onMoveToCandidates, availableTags = [] }) {
@@ -49,29 +50,6 @@ export default function ActivityModal({ activity, onClose, onSave, onDelete, onM
     const tagOptions = formData.tag && !tagNames.includes(formData.tag)
         ? [...tagNames, formData.tag]
         : tagNames;
-
-    const extractDirectImageUrl = (url) => {
-        if (!url) return '';
-        // If it's already a direct Google CDN link, return as is
-        if (url.includes('lh3.googleusercontent.com')) return url;
-
-        // Try to extract from Google Maps photo gallery URLs
-        // Pattern: ...!6shttps[:%]+2F%2Flh3\.googleusercontent\.com%2F...
-        const match = url.match(/!6s(https[:%][^!&]+lh3\.googleusercontent\.com[^!&]+)/);
-        if (match) {
-            let extracted = match[1];
-            // Decode repeatedly if necessary to handle double encoding
-            try {
-                let decoded = decodeURIComponent(extracted);
-                if (decoded.includes('%')) decoded = decodeURIComponent(decoded);
-                return decoded;
-            } catch (e) {
-                return extracted;
-            }
-        }
-
-        return url;
-    };
 
     const handleChange = (e) => {
         const { name, value } = e.target;

@@ -1,8 +1,9 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { replaceTripActivities, exportToCSV, parseCSV, generateId, saveTrip, deleteTrip, saveCandidate, deleteCandidate, saveActivity, DEFAULT_TAGS, COLOR_PALETTE, DEFAULT_TAG_COLOR, normalizeTags } from '../db';
-import { Download, Upload, Plus, Trash2, Save, Trash, MapPin, Link as LinkIcon, ExternalLink, Tag, X, ChevronDown, ChevronUp } from 'lucide-react';
+import { Download, Upload, Plus, Trash2, Save, Trash, MapPin, Link as LinkIcon, ExternalLink, Tag, X, ChevronDown, ChevronUp, Pencil } from 'lucide-react';
 import { Draggable } from '@fullcalendar/interaction';
 import CalendarView from './CalendarView';
+import CandidateModal from '../components/CandidateModal';
 import './AdminView.css';
 
 const WEEKDAYS = ['일', '월', '화', '수', '목', '금', '토'];
@@ -31,7 +32,8 @@ export default function AdminView({ dbData, refreshDb, selectedTripId: initialTr
     const [tripStartDate, setTripStartDate] = useState(initialTrip?.startDate || '');
     const [tripEndDate, setTripEndDate] = useState(initialTrip?.endDate || '');
 
-    const [newCandidate, setNewCandidate] = useState({ title: '', url: '', notes: '', imageUrl: '' });
+    // 추가·수정 모두 CandidateModal 이 처리한다. 신규는 id 에 `new_` prefix.
+    const [editingCandidate, setEditingCandidate] = useState(null);
     const [newTagInput, setNewTagInput] = useState('');
     const [editingTag, setEditingTag] = useState(null);
     const [editingTagValue, setEditingTagValue] = useState('');
@@ -52,53 +54,25 @@ export default function AdminView({ dbData, refreshDb, selectedTripId: initialTr
     // FullCalendar's events array and snapped the drag mirror away from
     // the cursor. Direct DOM toggling sidesteps React entirely.
     const sidebarRef = useRef(null);
-    const fcMirrorCleanupRef = useRef([]);
 
-    // FullCalendar's drag mirror is positioned in the calendar grid's
-    // local coordinate frame. Once the cursor leaves the calendar and
-    // enters the wishlist the mirror lands ~500px off-cursor and can't
-    // be coaxed back. Hide it while over the wishlist — the sidebar's
-    // own drop-placeholder + outline give enough feedback, and the drop
-    // position is read from the cursor in handleEventDragStop anyway.
+    // v21: 미러를 더 이상 건드리지 않는다.
     //
-    // We hide via inline style (stronger than any FC inline positioning)
-    // and cast a wide net on selectors because FC versions name the
-    // mirror element differently. If our selector misses, we log every
-    // floating element in the calendar so we can pin it down.
-    const hideFCMirror = () => {
-        const els = document.querySelectorAll(
-            '.fc-event-dragging, [class*="fc-event-mirror"], .fc-helper'
-        );
-        if (!els.length) {
-            const seen = new Set();
-            document.querySelectorAll('.fc *').forEach(el => {
-                const cs = window.getComputedStyle(el);
-                if (cs.position === 'absolute' || cs.position === 'fixed') {
-                    seen.add(el.className || el.tagName);
-                }
-            });
-            console.warn('[wishlist] FC mirror not matched. Floating .fc descendants:', [...seen]);
-            return;
-        }
-        els.forEach(el => {
-            if (el.style.display === 'none') return;
-            fcMirrorCleanupRef.current.push([el, el.style.display]);
-            el.style.display = 'none';
-        });
-    };
-
-    const showFCMirror = () => {
-        fcMirrorCleanupRef.current.forEach(([el, prev]) => {
-            el.style.display = prev || '';
-        });
-        fcMirrorCleanupRef.current = [];
-    };
-
+    // v8~v20 이 20번 실패한 진짜 원인은 FC 가 아니라 CSS 였다. 미러는
+    // position:fixed 인데 FC 가 이걸 `elementClosest(origTarget, '.fc')` 아래에
+    // 붙인다(interaction/index.js:1255). 그런데 그 조상인
+    // `<main class="container animate-slide-up">` 는 `animation: slideUp ...
+    // forwards` 가 끝난 뒤에도 `transform: translateY(0)` 을 남기고,
+    // **transform 이 걸린 요소는 position:fixed 의 포함 블록이 된다.**
+    // 그래서 미러의 left/top 이 viewport 가 아니라 container 기준으로 풀렸고,
+    // container 가 가운데 정렬이라 창이 넓을수록(maximized) 오차가 커졌다.
+    // "미러가 커서와 어긋난다"는 증상의 전부가 이것이었다.
+    //
+    // 해법은 CalendarView 의 `fixedMirrorParent={document.body}` — 미러를
+    // body 에 붙여 포함 블록을 viewport 로 되돌린다. 미러가 커서를 정확히
+    // 따라오므로 여기서 숨길 이유가 사라졌고, 숨기기(=미러 DOM 조작)야말로
+    // FC cleanup 을 깨뜨려 다음 드래그를 죽이던 원인이었다.
     const setSidebarDragOver = (over) => {
         sidebarRef.current?.classList.toggle('is-dragging-over', !!over);
-        document.body.classList.toggle('hide-fc-mirror', !!over);
-        if (over) hideFCMirror();
-        else showFCMirror();
     };
 
     // Initialize Draggable for candidates
@@ -147,20 +121,6 @@ export default function AdminView({ dbData, refreshDb, selectedTripId: initialTr
             window.removeEventListener('pointercancel', onUp);
         };
     }, []);
-
-    const extractDirectImageUrl = (url) => {
-        if (!url) return '';
-        if (url.includes('lh3.googleusercontent.com') && !url.includes('google.com/maps')) return url;
-        const match = url.match(/!6s(https[:%][^!&]+lh3\.googleusercontent\.com[^!&]+)/);
-        if (match) {
-            try {
-                let decoded = decodeURIComponent(match[1]);
-                if (decoded.includes('%')) decoded = decodeURIComponent(decoded);
-                return decoded;
-            } catch (e) { return match[1]; }
-        }
-        return url;
-    };
 
     // Auto-save title + period
     useEffect(() => {
@@ -230,21 +190,46 @@ export default function AdminView({ dbData, refreshDb, selectedTripId: initialTr
         setTripEndDate('');
     };
 
-    const handleAddCandidate = async () => {
-        if (!newCandidate.title) return;
-        const candidate = {
-            id: generateId(),
+    const handleOpenNewCandidate = () => {
+        if (!selectedTripId) return;
+        setEditingCandidate({
+            id: `new_${generateId()}`,
             tripId: selectedTripId,
-            ...newCandidate
+            title: '',
+            url: '',
+            notes: '',
+            imageUrl: ''
+        });
+    };
+
+    const handleSaveCandidate = async (form) => {
+        if (!editingCandidate) return;
+        const { id } = editingCandidate;
+        // saveCandidate 는 setDoc 전체 덮어쓰기라 기존 id 로 부르면 그대로 update 가 된다.
+        const toSave = {
+            ...editingCandidate,
+            ...form,
+            id: id.startsWith('new_') ? id.replace('new_', '') : id,
+            tripId: selectedTripId
         };
-        await saveCandidate(candidate);
-        await refreshDb();
-        setNewCandidate({ title: '', url: '', notes: '' });
+        try {
+            await saveCandidate(toSave);
+            await refreshDb();
+            setEditingCandidate(null);
+        } catch (e) {
+            alert('저장 실패: ' + e.message);
+        }
     };
 
     const handleDeleteCandidate = async (id) => {
-        await deleteCandidate(id);
-        await refreshDb();
+        if (!confirm('이 항목을 위시리스트에서 삭제하시겠습니까?')) return;
+        try {
+            await deleteCandidate(id);
+            await refreshDb();
+            setEditingCandidate(null);
+        } catch (e) {
+            alert('삭제 실패: ' + e.message);
+        }
     };
 
     const currentCandidates = (dbData.candidates || []).filter(c => c.tripId === selectedTripId);
@@ -577,34 +562,15 @@ export default function AdminView({ dbData, refreshDb, selectedTripId: initialTr
                     <div className="sidebar-header">
                         <MapPin size={18} />
                         <h3>가고 싶은 곳 (Wishlist)</h3>
-                    </div>
-
-                    <div className="candidate-add-form">
-                        <input
-                            type="text"
-                            placeholder="장소 이름"
-                            value={newCandidate.title}
-                            onChange={(e) => setNewCandidate({ ...newCandidate, title: e.target.value })}
-                        />
-                        <input
-                            type="text"
-                            placeholder="구글맵 링크 (선택)"
-                            value={newCandidate.url}
-                            onChange={(e) => setNewCandidate({ ...newCandidate, url: e.target.value })}
-                        />
-                        <input
-                            type="text"
-                            placeholder="이미지 URL (선택)"
-                            value={newCandidate.imageUrl}
-                            onChange={(e) => setNewCandidate({ ...newCandidate, imageUrl: extractDirectImageUrl(e.target.value) })}
-                        />
-                        <textarea
-                            placeholder="메모 (선택)"
-                            value={newCandidate.notes}
-                            onChange={(e) => setNewCandidate({ ...newCandidate, notes: e.target.value })}
-                        />
-                        <button className="btn btn-primary btn-sm" onClick={handleAddCandidate}>
-                            <Plus size={16} /> 추가하기
+                        <button
+                            type="button"
+                            className="candidate-add-btn"
+                            onClick={handleOpenNewCandidate}
+                            disabled={!selectedTripId}
+                            title="장소 추가"
+                            aria-label="장소 추가"
+                        >
+                            <Plus size={16} />
                         </button>
                     </div>
 
@@ -617,34 +583,69 @@ export default function AdminView({ dbData, refreshDb, selectedTripId: initialTr
                             <Plus size={24} />
                             <span>이곳에 놓으면 후보지로 이동합니다</span>
                         </div>
-                        <p className="hint">💡 아래 항목을 달력으로 끌어다 놓으세요!</p>
+                        {currentCandidates.length === 0
+                            ? <p className="hint">위 <strong>+</strong> 버튼으로 가고 싶은 곳을 추가하세요.</p>
+                            : <p className="hint">💡 아래 항목을 달력으로 끌어다 놓으세요!</p>}
+                        {/* 드래그 대상은 카드가 아니라 안쪽 래퍼다. FullCalendar 는
+                            컨테이너의 네이티브 mousedown 에서 closest('.candidate-item-draggable')
+                            로 대상을 찾으므로, 액션 버튼을 래퍼 바깥(형제)에 두면 버튼을 누른 채
+                            흔들려도 드래그가 시작되지 않는다. React 합성 이벤트의
+                            stopPropagation 은 루트 위임이라 이 시점엔 이미 늦어서 소용없다. */}
                         {currentCandidates.map(c => (
-                            <div
-                                key={c.id}
-                                className="candidate-item candidate-item-draggable"
-                                data-event={JSON.stringify({
-                                    ...c,
-                                    imageUrl: c.imageUrl || ''
-                                })}
-                            >
-                                {c.imageUrl && (
-                                    <div className="candidate-thumbnail">
-                                        <img src={c.imageUrl} alt={c.title} />
+                            <div key={c.id} className="candidate-item">
+                                <div
+                                    className="candidate-item-draggable"
+                                    data-event={JSON.stringify({
+                                        ...c,
+                                        imageUrl: c.imageUrl || ''
+                                    })}
+                                >
+                                    {c.imageUrl && (
+                                        <div className="candidate-thumbnail">
+                                            <img src={c.imageUrl} alt={c.title} />
+                                        </div>
+                                    )}
+                                    <div className="candidate-info">
+                                        <span className="candidate-title">{c.title}</span>
+                                        {c.url && <a href={c.url} target="_blank" rel="noopener noreferrer"><ExternalLink size={14} /></a>}
                                     </div>
-                                )}
-                                <div className="candidate-info">
-                                    <span className="candidate-title">{c.title}</span>
-                                    {c.url && <a href={c.url} target="_blank" rel="noopener noreferrer"><ExternalLink size={14} /></a>}
                                 </div>
-                                <button className="delete-candidate-btn" onClick={() => handleDeleteCandidate(c.id)}>
-                                    <Trash size={14} />
-                                </button>
+                                <div className="candidate-actions">
+                                    <button
+                                        type="button"
+                                        className="candidate-action-btn"
+                                        onClick={() => setEditingCandidate(c)}
+                                        title="수정"
+                                        aria-label={`${c.title} 수정`}
+                                    >
+                                        <Pencil size={14} />
+                                    </button>
+                                    <button
+                                        type="button"
+                                        className="candidate-action-btn is-danger"
+                                        onClick={() => handleDeleteCandidate(c.id)}
+                                        title="삭제"
+                                        aria-label={`${c.title} 삭제`}
+                                    >
+                                        <Trash size={14} />
+                                    </button>
+                                </div>
                             </div>
                         ))}
                     </div>
                 </div>
                 </div>
             </div>
+
+            {editingCandidate && (
+                <CandidateModal
+                    key={editingCandidate.id}
+                    candidate={editingCandidate}
+                    onClose={() => setEditingCandidate(null)}
+                    onSave={handleSaveCandidate}
+                    onDelete={handleDeleteCandidate}
+                />
+            )}
         </div>
     );
 }
