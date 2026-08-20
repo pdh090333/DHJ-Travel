@@ -4,6 +4,7 @@ import timeGridPlugin from '@fullcalendar/timegrid';
 import interactionPlugin from '@fullcalendar/interaction';
 import ActivityModal from '../components/ActivityModal';
 import { saveActivity, deleteActivity, generateId, normalizeTags, resolveActivityColor } from '../db';
+import { computeTimeWindow } from '../utils/timeWindow';
 import './CalendarView.css';
 
 const BUILD_TAG = 'wishlist-drag v18 — hands off the mirror, ghost-only feedback';
@@ -40,6 +41,11 @@ export default function CalendarView({ dbData, selectedTripId, refreshDb, onDrag
         .filter(a => a.tripId === selectedTripId)
         .filter(a => !a.date || ISO_DATE.test(a.date));
     const currentTrip = dbData.trips.find(t => t.id === selectedTripId);
+
+    // 빈 앞뒤 시간대를 잘라 행을 키운다 — 이게 한 화면에 담기는 핵심.
+    // useMemo 를 쓰지 않는 이유: activities 가 매 렌더 새 배열이라 절대 적중하지
+    // 않고, 항목 수가 한 자릿수라 선형 스캔이 더 싸다.
+    const { slotMinTime, slotMaxTime } = computeTimeWindow(activities);
 
     const tripDuration = computeTripDuration(currentTrip?.startDate, currentTrip?.endDate);
     const hasTripPeriod = tripDuration > 0;
@@ -118,6 +124,17 @@ export default function CalendarView({ dbData, selectedTripId, refreshDb, onDrag
     };
 
     const handleEventClick = (clickInfo) => setSelectedActivity(clickInfo.event.extendedProps);
+
+    // 행이 화면에 맞춰 줄어들면 15분 일정은 글자가 안 들어가는 색 막대가 된다.
+    // 제목을 네이티브 툴팁으로 옮겨 hover 로 확인할 수 있게 한다.
+    // events 배열이 매 렌더 새 identity 라 FC 가 재파싱 → 엘리먼트 remount →
+    // 이 훅이 다시 돌므로 값이 낡을 일은 없다.
+    const pad2 = (n) => String(n).padStart(2, '0');
+    const hhmm = (d) => (d ? `${pad2(d.getHours())}:${pad2(d.getMinutes())}` : '');
+    const handleEventDidMount = (arg) => {
+        const range = arg.event.end ? `${hhmm(arg.event.start)}–${hhmm(arg.event.end)}  ` : '';
+        arg.el.title = range + arg.event.title;
+    };
 
     const handleDateSelect = (selectInfo) => {
         const calendarApi = selectInfo.view.calendar;
@@ -318,13 +335,29 @@ export default function CalendarView({ dbData, selectedTripId, refreshDb, onDrag
                     plugins={[timeGridPlugin, interactionPlugin]}
                     {...calendarConfig}
                     allDaySlot={false}
-                    slotMinTime="06:00:00"
-                    slotMaxTime="24:00:00"
+                    slotMinTime={slotMinTime}
+                    slotMaxTime={slotMaxTime}
+                    scrollTime={slotMinTime}
                     slotDuration="01:00:00"
                     snapDuration="00:15:00"
                     slotLabelInterval="01:00:00"
                     expandRows={true}
                     displayEventTime={false}
+                    /* 기본값 15 는 SegHierarchy 前에 seg 의 span 을 15px 로 부풀린다
+                       (timegrid/internal.js:644). 시간당 60px 미만이면 연속된 15분
+                       일정 두 개가 "겹친 것"으로 판정돼 반쪽 너비로 갈라진다 —
+                       화면 맞춤에선 거의 항상 해당된다. 4 로 낮추면 그 임계가
+                       시간당 16px 이 되어 도달 불가능해진다. */
+                    eventMinHeight={4}
+                    /* 20px = 라인박스 15.6px + chrome 5px. 이 값 아래를 FC 가
+                       .fc-timegrid-event-short 로 표시하므로, "short" 가 정확히
+                       "글자가 물리적으로 못 들어감" 을 의미하게 된다. */
+                    eventShortHeight={20}
+                    /* 리사이즈 핸들이 위아래 8px 씩이라 20px 미만 박스는 전체가
+                       핸들이 되어 클릭이 모달 대신 리사이즈로 먹힌다. 시간 수정은
+                       모달에서 한다. 이동(드래그)은 editable 로 그대로 유지. */
+                    eventDurationEditable={false}
+                    eventDidMount={handleEventDidMount}
                     events={events} editable={true} selectable={true} selectMirror={true}
                     eventChange={handleEventChange} eventClick={handleEventClick} select={handleDateSelect}
                     eventReceive={handleEventReceive} eventDragStop={handleEventDragStop}
