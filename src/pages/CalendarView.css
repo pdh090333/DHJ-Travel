@@ -90,20 +90,37 @@
     --fc-border-color: var(--border-color);
 }
 
-/* slotDuration is 1h, so this controls the per-hour row height.
-   We use `height` (not `min-height`) because the slot is a <tr> and
-   table rows ignore min-height in most browsers — earlier attempts
-   with min-height looked unchanged because expandRows={true} was
-   silently governing the row size in both environments instead.
-   The 5rem (80px) hour-row is sized so a 15-minute event gets a 20px
-   slice — minus the .fc-event-main 2px padding top/bottom, the
-   remaining 16px fits one line of the ~13–14px event title. Below
-   that (e.g. 4rem → 16px slot → 12px content) titles get clipped on
-   short events. The taller row means scrollbars cover more time:
-   ~9h on a 1920x1080 laptop, ~4–5h on a 27" QHD.
-   snapDuration='00:15:00' keeps drag/select precision at 15 minutes. */
+/* 이건 행 높이가 아니라 가독성 FLOOR 다. 행은 이 값보다 커지기만 한다.
+   expandRows={true} 가 슬롯 <table> 에 인라인 height 를 넣고
+   (@fullcalendar/timegrid/internal.js:420,962), CSS 에서 테이블의 height 는
+   최소값이라 남는 높이가 각 <tr> 에 비례 분배된다. 즉 화면이 크면 알아서
+   꽉 찬다. 이 숫자가 정하는 건 "몇 px 뷰포트부터 포기하고 스크롤할지" 뿐.
+
+   42px = 30분 일정 제목이 한 줄 들어가는 최소치.
+     30분 박스 = 42/2 = 21px, chrome 5px(margin 1 + border 2 + padding 2) 빼면
+     16px >= 라인박스 15.6px. 이 아래로는 30분 일정까지 글자 없는 막대가 된다.
+   13" MacBook(뷰포트 818) 이상은 이 바닥에 안 걸리고 완전히 맞는다.
+
+   !important 를 붙이지 말 것. 큰 값 + !important 가 PR #6/#7 에서 자동 맞춤을
+   죽인 원인이다 — 18행 x 80px = 1440px 가 clientHeight 를 항상 이겼다.
+   FC 는 자기 스타일시트를 <head> 최상단에 주입하므로 없어도 우리가 이긴다. */
 .fc .fc-timegrid-slot {
-    height: 5rem !important;
+    height: 42px;
+    line-height: 1;
+}
+
+/* FC 가 빈 레인에 넣는 nbsp 이 body 의 line-height 1.5 를 타고
+   라인박스를 만들어 floor 를 밀어올리는 것을 막는다. */
+.fc .fc-timegrid-slot-lane:empty::before {
+    font-size: 0;
+}
+
+/* 인쇄 시 FC 는 clientHeight 를 적용하지 않아(forPrint → liquid=false) 행이
+   floor 로 떨어진다. 종이에선 화면 맞춤이 의미 없으니 넉넉히 준다. */
+@media print {
+    .fc .fc-timegrid-slot {
+        height: 3rem;
+    }
 }
 
 .fc-theme-standard .fc-timegrid-slot-label-cushion,
@@ -136,11 +153,6 @@
     opacity: 1;
 }
 
-/* Reduce the day-column header (요일 + 날짜 row). */
-.fc .fc-col-header-cell-cushion {
-    padding: 4px 4px !important;
-}
-
 /* slotDuration is now 1h: there are no minor sub-rows, so the hour
    labels naturally sit in the centre of their own row. No translateY
    needed. The minor-slot rules below are kept as no-ops in case we
@@ -155,9 +167,17 @@
     border-top: 0 !important;
 }
 
+/* 날짜 헤더 행을 줄인다 (49px → 33px). 위쪽에 padding:4px 짜리 동일 선택자가
+   하나 더 있었는데 이 규칙에 밀려 한 번도 적용된 적이 없었다 — 그쪽을 지우고
+   의도했던 값을 여기에 반영했다. */
 .fc .fc-col-header-cell-cushion {
-    padding: 12px 4px !important;
+    padding: 4px 4px !important;
     color: var(--text-primary) !important;
+}
+
+/* FC 기본 1.5em(24px). 한 화면 맞춤에선 이 여백이 아깝다. */
+.fc .fc-toolbar.fc-header-toolbar {
+    margin-bottom: 0.4rem !important;
 }
 
 .fc-direction-ltr .fc-timegrid-slot-label-frame {
@@ -171,8 +191,36 @@
     cursor: pointer !important;
 }
 
+/* ── 짧은 일정 대응 ────────────────────────────────────────────────
+   행이 화면에 맞춰 줄어들면 대부분의 박스가 10~25px 다. 세로 픽셀을 아끼고,
+   두 번째 줄이 잘려 보이느니 한 줄 말줄임이 낫다.
+   박스당 chrome: 1px(margin-bottom) + 2px(border) + 2px(아래 padding) = 5px */
 .fc-event-main {
-    padding: 2px 4px !important;
+    padding: 1px 4px !important;
+}
+
+.fc-timegrid-event .fc-event-main-frame,
+.fc-timegrid-event .fc-event-title {
+    /* body 의 line-height 1.5 는 여기서 한 줄당 4.8px 를 낭비한다 */
+    line-height: 1.15;
+}
+
+.fc-timegrid-event .fc-event-title {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+/* eventShortHeight(20px) 미만은 한 줄이 물리적으로 안 들어간다.
+   글자 위쪽만 어설프게 보여주지 말고 순수 색 막대로 두고, 제목은 툴팁으로.
+   (CalendarView 의 eventDidMount 가 el.title 을 채운다) */
+.fc-timegrid-event-short .fc-event-main {
+    padding: 0 !important;
+}
+
+.fc-timegrid-event-short .fc-event-title-container,
+.fc-timegrid-event-short .fc-event-title {
+    display: none;
 }
 
 /* Ensure dragging event doesn't block hit testing */
