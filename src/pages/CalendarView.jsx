@@ -355,10 +355,6 @@ export default function CalendarView({ dbData, selectedTripId, refreshDb, onDrag
                        .fc-timegrid-event-short 로 표시하므로, "short" 가 정확히
                        "글자가 물리적으로 못 들어감" 을 의미하게 된다. */
                     eventShortHeight={20}
-                    /* 리사이즈 핸들이 위아래 8px 씩이라 20px 미만 박스는 전체가
-                       핸들이 되어 클릭이 모달 대신 리사이즈로 먹힌다. 시간 수정은
-                       모달에서 한다. 이동(드래그)은 editable 로 그대로 유지. */
-                    eventDurationEditable={false}
                     eventDidMount={handleEventDidMount}
                     events={events} editable={true} selectable={true} selectMirror={true}
                     eventChange={handleEventChange} eventClick={handleEventClick} select={handleDateSelect}
