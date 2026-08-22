@@ -13,10 +13,12 @@
 const HHMM = /^(\d{1,2}):([0-5]\d)$/;
 const DAY = 24 * 60;
 
-export const FALLBACK_MIN_MINUTES = 7 * 60;   // 07:00
-export const FALLBACK_MAX_MINUTES = 23 * 60;  // 23:00
+// 항상 최소한 이만큼은 그린다. 일정을 추가해도 이 범위가 좁아지지 않는다.
+// slotMaxTime 은 마지막 행의 "경계"라 24:00 이어야 23:00(오후 11시) 라벨이 보인다.
+// 23:00 으로 두면 마지막 라벨이 22:00 이 되어 오후 11시가 안 보인다.
+export const BASELINE_MIN_MINUTES = 7 * 60;    // 07:00 라벨부터
+export const BASELINE_MAX_MINUTES = 24 * 60;   // 23:00 라벨까지 (경계는 24:00)
 export const DEFAULT_PAD_MINUTES = 60;
-export const DEFAULT_MIN_SPAN_MINUTES = 8 * 60;
 
 /** "HH:MM" → 자정 이후 분. 형식 위반이면 null. "24:00" → 1440. */
 export function parseHM(value) {
@@ -54,10 +56,16 @@ export function activitySpanMinutes(act) {
 
 /**
  * 활동 배열 → { slotMinTime, slotMaxTime } ("HH:MM:00" 문자열).
+ *
+ * 기준선 07:00~24:00 을 깔고 **넓히기만** 한다. 범위 밖 일정(이른 비행기 등)이
+ * 있으면 그쪽으로만 늘어나고, 일정이 몰려 있다고 해서 좁아지지는 않는다.
+ *
+ * 좁아지게 두면 일정을 하나 추가하는 순간 그리드가 그 일정 주변 몇 시간으로
+ * 확 줄어 계획을 이어가기가 어렵다. 빈 시간대를 잘라 얻는 픽셀보다
+ * "화면이 예측 가능하게 유지되는 것" 이 더 중요하다.
  */
 export function computeTimeWindow(activities, {
-    pad = DEFAULT_PAD_MINUTES,
-    minSpan = DEFAULT_MIN_SPAN_MINUTES
+    pad = DEFAULT_PAD_MINUTES
 } = {}) {
     let lo = Infinity;
     let hi = -Infinity;
@@ -71,31 +79,19 @@ export function computeTimeWindow(activities, {
 
     if (lo === Infinity) {
         return {
-            slotMinTime: minutesToHMS(FALLBACK_MIN_MINUTES),
-            slotMaxTime: minutesToHMS(FALLBACK_MAX_MINUTES)
+            slotMinTime: minutesToHMS(BASELINE_MIN_MINUTES),
+            slotMaxTime: minutesToHMS(BASELINE_MAX_MINUTES)
         };
     }
 
-    lo -= pad;
-    hi += pad;
-
     // 정시로 바깥쪽 스냅. slotLabelInterval 이 1시간이라 07:23 로 시작하면
     // 라벨이 07:23, 08:23 … 으로 붙어 깨져 보인다.
-    lo = Math.floor(lo / 60) * 60;
-    hi = Math.ceil(hi / 60) * 60;
+    lo = Math.floor((lo - pad) / 60) * 60;
+    hi = Math.ceil((hi + pad) / 60) * 60;
 
-    // 최소 span 까지 중앙 기준으로 확장. 10:00~11:00 단일 일정이 3행짜리
-    // 슬래브 그리드가 되는 것을 막는다.
-    if (hi - lo < minSpan) {
-        const growHours = Math.ceil((minSpan - (hi - lo)) / 60);
-        const before = Math.floor(growHours / 2);
-        lo -= before * 60;
-        hi += (growHours - before) * 60;
-    }
-
-    // 하루 밖으로 나가면 반대쪽으로 밀어 span 을 보존한다.
-    if (lo < 0) { hi = Math.min(DAY, hi - lo); lo = 0; }
-    if (hi > DAY) { lo = Math.max(0, lo - (hi - DAY)); hi = DAY; }
+    // 기준선을 깔고 넓히기만 한다.
+    lo = Math.max(0, Math.min(BASELINE_MIN_MINUTES, lo));
+    hi = Math.min(DAY, Math.max(BASELINE_MAX_MINUTES, hi));
 
     return { slotMinTime: minutesToHMS(lo), slotMaxTime: minutesToHMS(hi) };
 }
