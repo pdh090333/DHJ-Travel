@@ -42,7 +42,9 @@ export default function CalendarView({ dbData, selectedTripId, refreshDb, onDrag
         .filter(a => !a.date || ISO_DATE.test(a.date));
     const currentTrip = dbData.trips.find(t => t.id === selectedTripId);
 
-    // 빈 앞뒤 시간대를 잘라 행을 키운다 — 이게 한 화면에 담기는 핵심.
+    // 기준선 07:00~24:00(오후 11시 라벨까지)을 깔고 범위 밖 일정이 있을 때만
+    // 넓힌다. 좁아지지는 않는다 — 일정 하나 추가했다고 그리드가 그 주변 몇
+    // 시간으로 줄어들면 계획을 이어갈 수가 없다.
     // useMemo 를 쓰지 않는 이유: activities 가 매 렌더 새 배열이라 절대 적중하지
     // 않고, 항목 수가 한 자릿수라 선형 스캔이 더 싸다.
     const { slotMinTime, slotMaxTime } = computeTimeWindow(activities);
