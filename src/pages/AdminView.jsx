@@ -4,6 +4,7 @@ import { Download, Upload, Plus, Trash2, Save, Trash, MapPin, Link as LinkIcon, 
 import { Draggable } from '@fullcalendar/interaction';
 import CalendarView from './CalendarView';
 import CandidateModal from '../components/CandidateModal';
+import { getDensityPreference, setDensityPreference } from '../density';
 import './AdminView.css';
 
 const WEEKDAYS = ['일', '월', '화', '수', '목', '금', '토'];
@@ -48,6 +49,14 @@ export default function AdminView({ dbData, refreshDb, selectedTripId: initialTr
         const [ey, em, edd] = ed.split('-').map(Number);
         return Date.UTC(ey, em - 1, edd) >= Date.UTC(sy, sm - 1, sdd) ? 'trip' : 'week';
     });
+
+    // 캘린더 행 밀도. 기기별 취향이라 localStorage 에 남긴다(density.js 주석 참고).
+    // theme.js 소비 패턴과 동일 — lazy 초기화 + 핸들러에서 명령형 쓰기 후 setState.
+    const [density, setDensity] = useState(getDensityPreference);
+    const changeDensity = (d) => {
+        setDensityPreference(d);
+        setDensity(d);
+    };
 
     // Was useState — but toggling state on every wishlist boundary crossing
     // forced an AdminView+CalendarView re-render mid-drag, which rebuilt
@@ -513,6 +522,7 @@ export default function AdminView({ dbData, refreshDb, selectedTripId: initialTr
                             onDragOverWishlist={setSidebarDragOver}
                             onUnschedule={onUnschedule}
                             viewMode={viewMode}
+                            density={density}
                         />
                     ) : (
                         <div style={{ textAlign: 'center', padding: '3rem', color: 'var(--text-secondary)' }}>
@@ -562,6 +572,27 @@ export default function AdminView({ dbData, refreshDb, selectedTripId: initialTr
                             title={hasTripPeriod ? '' : '먼저 여행 기간을 설정하세요'}
                         >
                             여행 기간 {hasTripPeriod ? `(${tripDuration}일)` : ''}
+                        </button>
+                    </div>
+
+                    {/* 밀도. .view-mode-toggle 을 재사용하면 .right-column 스코프의
+                        세로 스택 + 전체 너비 스타일을 그대로 물려받는다. */}
+                    <div className="view-mode-toggle">
+                        <button
+                            type="button"
+                            className={`btn btn-sm ${density === 'comfortable' ? 'btn-primary' : 'btn-ghost'}`}
+                            onClick={() => changeDensity('comfortable')}
+                            title="15분 일정 제목까지 보이는 높이 (세로 스크롤)"
+                        >
+                            보통
+                        </button>
+                        <button
+                            type="button"
+                            className={`btn btn-sm ${density === 'fit' ? 'btn-primary' : 'btn-ghost'}`}
+                            onClick={() => changeDensity('fit')}
+                            title="하루 전체를 한 화면에 (짧은 일정은 색 막대)"
+                        >
+                            한눈에 보기
                         </button>
                     </div>
 

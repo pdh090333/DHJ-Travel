@@ -5,6 +5,7 @@ import interactionPlugin from '@fullcalendar/interaction';
 import ActivityModal from '../components/ActivityModal';
 import { saveActivity, deleteActivity, generateId, normalizeTags, resolveActivityColor } from '../db';
 import { computeTimeWindow } from '../utils/timeWindow';
+import { DENSITY_SLOT_PX } from '../density';
 import './CalendarView.css';
 
 const BUILD_TAG = 'wishlist-drag v18 — hands off the mirror, ghost-only feedback';
@@ -25,7 +26,7 @@ const addOneDay = (dateStr) => {
     return `${next.getUTCFullYear()}-${String(next.getUTCMonth() + 1).padStart(2, '0')}-${String(next.getUTCDate()).padStart(2, '0')}`;
 };
 
-export default function CalendarView({ dbData, selectedTripId, refreshDb, onDragOverWishlist, onUnschedule, viewMode = 'week' }) {
+export default function CalendarView({ dbData, selectedTripId, refreshDb, onDragOverWishlist, onUnschedule, viewMode = 'week', density = 'comfortable' }) {
     useEffect(() => { console.log('[Travel]', BUILD_TAG); }, []);
 
     const [selectedActivity, setSelectedActivity] = useState(null);
@@ -331,7 +332,9 @@ export default function CalendarView({ dbData, selectedTripId, refreshDb, onDrag
 
     return (
         <div className="calendar-page">
-            <div className="calendar-container">
+            {/* 행 높이의 바닥값. CSS 변수는 상속되므로 하위 .fc .fc-timegrid-slot 이
+                    받는다. ItineraryView 의 --activity-color 와 같은 관용구. */}
+                <div className="calendar-container" style={{ '--slot-floor': `${DENSITY_SLOT_PX[density]}px` }}>
                 <FullCalendar
                     key={`${selectedTripId}-${firstDate}-${viewMode}-${tripDuration}`}
                     plugins={[timeGridPlugin, interactionPlugin]}
@@ -353,8 +356,10 @@ export default function CalendarView({ dbData, selectedTripId, refreshDb, onDrag
                     eventMinHeight={4}
                     /* 20px = 라인박스 15.6px + chrome 5px. 이 값 아래를 FC 가
                        .fc-timegrid-event-short 로 표시하므로, "short" 가 정확히
-                       "글자가 물리적으로 못 들어감" 을 의미하게 된다. */
-                    eventShortHeight={20}
+                       "글자가 물리적으로 못 들어감" 을 의미하게 된다.
+                       보통 모드에선 15분이 22px 라 20 을 넘기긴 하지만 여유가
+                       2px 뿐이라 취약하다. 12 로 낮춰 막대 렌더를 확실히 끈다. */
+                    eventShortHeight={density === 'fit' ? 20 : 12}
                     eventDidMount={handleEventDidMount}
                     events={events} editable={true} selectable={true} selectMirror={true}
                     eventChange={handleEventChange} eventClick={handleEventClick} select={handleDateSelect}

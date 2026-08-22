@@ -104,16 +104,19 @@
    최소값이라 남는 높이가 각 <tr> 에 비례 분배된다. 즉 화면이 크면 알아서
    꽉 찬다. 이 숫자가 정하는 건 "몇 px 뷰포트부터 포기하고 스크롤할지" 뿐.
 
-   42px = 30분 일정 제목이 한 줄 들어가는 최소치.
-     30분 박스 = 42/2 = 21px, chrome 5px(margin 1 + border 2 + padding 2) 빼면
-     16px >= 라인박스 15.6px. 이 아래로는 30분 일정까지 글자 없는 막대가 된다.
-   13" MacBook(뷰포트 818) 이상은 이 바닥에 안 걸리고 완전히 맞는다.
+   실제 값은 밀도 토글이 .calendar-container 에 인라인으로 넣는다
+   (density.js 의 DENSITY_SLOT_PX). 아래 fallback 42px 는 그 변수가 없을 때만.
+
+   보통 88px : 15분 박스 22px, chrome 5px(margin 1 + border 2 + padding 2) 빼면
+               17px >= 라인박스 15.6px → 15분 제목까지 보인다. 대신 스크롤.
+   한눈 42px : 30분 기준 같은 계산(21 - 5 = 16px). 하루 전체가 한 화면에
+               들어가는 대신 15분은 글자 없는 색 막대가 된다.
 
    !important 를 붙이지 말 것. 큰 값 + !important 가 PR #6/#7 에서 자동 맞춤을
    죽인 원인이다 — 18행 x 80px = 1440px 가 clientHeight 를 항상 이겼다.
    FC 는 자기 스타일시트를 <head> 최상단에 주입하므로 없어도 우리가 이긴다. */
 .fc .fc-timegrid-slot {
-    height: 42px;
+    height: var(--slot-floor, 42px);
     line-height: 1;
 }
 
