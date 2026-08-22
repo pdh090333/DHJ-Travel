@@ -88,6 +88,14 @@
    as a bright line on dark mode while td/th borders use --border-color. */
 .fc {
     --fc-border-color: var(--border-color);
+
+    /* 기본 8px. 리사이저는 박스 안쪽 위아래로 각 T/2 씩 차지하므로
+       (timegrid: top/bottom = T/-2, height = T) 클릭으로 모달을 열 수 있는
+       가운데 영역은 "박스 높이 - T" 다. 행이 화면에 맞춰 줄어들면 15분 막대가
+       13px 까지 내려가는데 T=8 이면 5px 만 남아 클릭이 리사이즈로 먹힌다.
+       6px 로 줄이면 7px 가 남아 짧은 막대도 클릭이 되고, 핸들 자체도 여전히
+       잡을 만하다. 30분(27px) 이상은 어느 쪽이든 넉넉하다. */
+    --fc-event-resizer-thickness: 6px;
 }
 
 /* 이건 행 높이가 아니라 가독성 FLOOR 다. 행은 이 값보다 커지기만 한다.
