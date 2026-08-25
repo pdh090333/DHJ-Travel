@@ -132,7 +132,8 @@ function App() {
       url: activityToMove.arrivalUrl || activityToMove.departureUrl || '',
       notes: activityToMove.notes || '',
       imageUrl: activityToMove.imageUrl || '',
-      tag: activityToMove.tag || ''
+      tag: activityToMove.tag || '',
+      area: activityToMove.area || ''
     };
 
     setDbData(prev => ({
