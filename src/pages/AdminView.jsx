@@ -1,10 +1,11 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { replaceTripActivities, exportToCSV, parseCSV, generateId, saveTrip, deleteTrip, saveCandidate, deleteCandidate, saveActivity, DEFAULT_TAGS, COLOR_PALETTE, DEFAULT_TAG_COLOR, normalizeTags, resolveActivityColor } from '../db';
-import { Download, Upload, Plus, Trash2, Save, Trash, MapPin, Link as LinkIcon, ExternalLink, Tag, X, ChevronDown, ChevronUp, Pencil } from 'lucide-react';
+import { replaceTripActivities, exportToCSV, parseCSV, generateId, saveTrip, deleteTrip, saveCandidate, deleteCandidate, saveActivity, DEFAULT_TAGS, normalizeTags, resolveActivityColor } from '../db';
+import { Download, Upload, Plus, Trash2, Save, Trash, MapPin, Link as LinkIcon, ExternalLink, Tag, ChevronDown, ChevronUp, Pencil, Map as MapIcon } from 'lucide-react';
 import { Draggable } from '@fullcalendar/interaction';
 import CalendarView from './CalendarView';
 import CandidateModal from '../components/CandidateModal';
 import { getDensityPreference, setDensityPreference } from '../density';
+import TaxonomyEditor from '../components/TaxonomyEditor';
 import './AdminView.css';
 
 const WEEKDAYS = ['일', '월', '화', '수', '목', '금', '토'];
@@ -35,10 +36,6 @@ export default function AdminView({ dbData, refreshDb, selectedTripId: initialTr
 
     // 추가·수정 모두 CandidateModal 이 처리한다. 신규는 id 에 `new_` prefix.
     const [editingCandidate, setEditingCandidate] = useState(null);
-    const [newTagInput, setNewTagInput] = useState('');
-    const [editingTag, setEditingTag] = useState(null);
-    const [editingTagValue, setEditingTagValue] = useState('');
-    const [colorPickerForTag, setColorPickerForTag] = useState(null);
     const [headerExpanded, setHeaderExpanded] = useState(false);
     const [viewMode, setViewMode] = useState(() => {
         const tr = dbData.trips.find(t => t.id === (initialTripId || dbData.trips[0]?.id));
@@ -208,7 +205,8 @@ export default function AdminView({ dbData, refreshDb, selectedTripId: initialTr
             url: '',
             notes: '',
             imageUrl: '',
-            tag: ''
+            tag: '',
+            area: ''
         });
     };
 
@@ -258,78 +256,58 @@ export default function AdminView({ dbData, refreshDb, selectedTripId: initialTr
         setTripEndDate(next?.endDate || '');
     };
 
-    // ─── Tag management ─────────────────────────────────
+    // ─── Taxonomy (태그 / 지역) ──────────────────────────
+    // 둘은 완전히 같은 모양이라 저장·이름변경 로직을 한 벌로 묶었다.
     const currentTrip = dbData.trips.find(t => t.id === selectedTripId);
     const currentTags = normalizeTags(currentTrip?.tags);
+    const currentAreas = normalizeTags(currentTrip?.areas);
 
-    const persistTags = async (newTags) => {
+    // 자동저장 useEffect 와 경쟁하지 않도록 편집 중인 제목/기간을 항상 함께 쓴다.
+    const persistTrip = async (patch) => {
         if (!currentTrip) return;
         await saveTrip({
             ...currentTrip,
             title: selectedTripTitle,
             startDate: tripStartDate,
             endDate: tripEndDate,
-            tags: newTags
+            ...patch
         });
         await refreshDb();
     };
 
-    const handleAddTag = async (e) => {
-        e.preventDefault();
-        const t = newTagInput.trim();
-        if (!t) return;
-        if (currentTags.some(x => x.name === t)) {
-            setNewTagInput('');
-            return;
-        }
-        await persistTags([...currentTags, { name: t, color: DEFAULT_TAG_COLOR }]);
-        setNewTagInput('');
-    };
+    const persistTags = (tags) => persistTrip({ tags });
+    const persistAreas = (areas) => persistTrip({ areas });
 
-    const handleRemoveTag = async (tag) => {
-        if (!confirm(`"${tag.name}" 태그를 삭제하시겠습니까? (이 태그가 적용된 활동은 표시 이름만 남습니다.)`)) return;
-        await persistTags(currentTags.filter(t => t.name !== tag.name));
-    };
-
-    const handleRenameTag = async (oldName, newName) => {
+    // 이름을 바꾸면 그 이름을 참조하는 활동·후보지를 전부 갱신해야 한다.
+    // 빠뜨리면 이름만 바뀌고 참조가 옛 이름에 남아 색상 해석이 실패한다.
+    const renameTaxonomy = async (field, listKey, list, oldName, newName) => {
         const trimmed = newName.trim();
         if (!trimmed || trimmed === oldName) return;
-        if (currentTags.some(t => t.name === trimmed)) {
-            alert(`"${trimmed}" 태그가 이미 있습니다.`);
+        if (list.some(t => t.name === trimmed)) {
+            alert(`"${trimmed}" 항목이 이미 있습니다.`);
             return;
         }
-        const newTags = currentTags.map(t => t.name === oldName ? { ...t, name: trimmed } : t);
-        const affected = dbData.activities.filter(
-            a => a.tripId === selectedTripId && a.tag === oldName
-        );
-        // 후보지도 같은 태그 체계를 쓰므로 함께 갱신한다. 빠뜨리면 이름만 바뀌고
-        // 후보지의 tag 는 옛 이름에 남아 색상 해석이 실패한다.
-        const affectedCandidates = (dbData.candidates || []).filter(
-            c => c.tripId === selectedTripId && c.tag === oldName
-        );
+        const nextList = list.map(t => t.name === oldName ? { ...t, name: trimmed } : t);
+        const acts = dbData.activities.filter(a => a.tripId === selectedTripId && a[field] === oldName);
+        const cands = (dbData.candidates || []).filter(c => c.tripId === selectedTripId && c[field] === oldName);
         await Promise.all([
             saveTrip({
                 ...currentTrip,
                 title: selectedTripTitle,
                 startDate: tripStartDate,
                 endDate: tripEndDate,
-                tags: newTags
+                [listKey]: nextList
             }),
-            ...affected.map(a => saveActivity({ ...a, tag: trimmed })),
-            ...affectedCandidates.map(c => saveCandidate({ ...c, tag: trimmed }))
+            ...acts.map(a => saveActivity({ ...a, [field]: trimmed })),
+            ...cands.map(c => saveCandidate({ ...c, [field]: trimmed }))
         ]);
         await refreshDb();
     };
 
-    const handleChangeTagColor = async (tagName, color) => {
-        const newTags = currentTags.map(t => t.name === tagName ? { ...t, color } : t);
-        await persistTags(newTags);
-        setColorPickerForTag(null);
-    };
-
-    const handleSeedDefaultTags = async () => {
-        await persistTags([...DEFAULT_TAGS]);
-    };
+    const handleRenameTag = (oldName, newName) =>
+        renameTaxonomy('tag', 'tags', currentTags, oldName, newName);
+    const handleRenameArea = (oldName, newName) =>
+        renameTaxonomy('area', 'areas', currentAreas, oldName, newName);
 
     // View-mode safety: drop back to weekly view if the trip period is cleared.
     const hasTripPeriod = tripDuration > 0;
@@ -408,94 +386,34 @@ export default function AdminView({ dbData, refreshDb, selectedTripId: initialTr
                                 : '여행 기간을 설정하면 일정이 그 범위로 표시됩니다.'}
                         </span>
                     </div>
-                    <div className="trip-tag-row">
-                        <span className="trip-tag-row-label">
-                            <Tag size={14} /> 태그
-                        </span>
-                        <div className="trip-tag-list">
-                            {currentTags.map(tag => (
-                                <span key={tag.name} className="trip-tag-pill" style={{ borderColor: tag.color }}>
-                                    <button
-                                        type="button"
-                                        className="trip-tag-swatch"
-                                        style={{ background: tag.color }}
-                                        onClick={() => setColorPickerForTag(colorPickerForTag === tag.name ? null : tag.name)}
-                                        title="색상 변경"
-                                        aria-label={`${tag.name} 색상 변경`}
-                                    />
-                                    {colorPickerForTag === tag.name && (
-                                        <div className="trip-tag-color-popover">
-                                            {COLOR_PALETTE.map(c => (
-                                                <button
-                                                    key={c.value}
-                                                    type="button"
-                                                    className={`trip-tag-color-option${tag.color === c.value ? ' is-selected' : ''}`}
-                                                    style={{ background: c.value }}
-                                                    onClick={() => handleChangeTagColor(tag.name, c.value)}
-                                                    title={c.name}
-                                                    aria-label={c.name}
-                                                />
-                                            ))}
-                                        </div>
-                                    )}
-                                    {editingTag === tag.name ? (
-                                        <input
-                                            type="text"
-                                            value={editingTagValue}
-                                            onChange={(e) => setEditingTagValue(e.target.value)}
-                                            onBlur={() => {
-                                                handleRenameTag(tag.name, editingTagValue);
-                                                setEditingTag(null);
-                                            }}
-                                            onKeyDown={(e) => {
-                                                if (e.key === 'Enter') e.target.blur();
-                                                if (e.key === 'Escape') setEditingTag(null);
-                                            }}
-                                            autoFocus
-                                            className="trip-tag-rename-input"
-                                        />
-                                    ) : (
-                                        <button
-                                            type="button"
-                                            className="trip-tag-name"
-                                            onClick={() => {
-                                                setEditingTag(tag.name);
-                                                setEditingTagValue(tag.name);
-                                            }}
-                                            title="클릭하면 이름 수정"
-                                        >{tag.name}</button>
-                                    )}
-                                    <button
-                                        type="button"
-                                        className="trip-tag-remove"
-                                        onClick={() => handleRemoveTag(tag)}
-                                        title="삭제"
-                                    ><X size={12} /></button>
-                                </span>
-                            ))}
-                            {currentTags.length === 0 && (
-                                <button
-                                    type="button"
-                                    className="btn btn-ghost btn-sm"
-                                    onClick={handleSeedDefaultTags}
-                                >
-                                    기본 태그 추가 ({DEFAULT_TAGS.map(t => t.name).join(', ')})
-                                </button>
-                            )}
-                        </div>
-                        <form className="trip-tag-add" onSubmit={handleAddTag}>
-                            <input
-                                type="text"
-                                value={newTagInput}
-                                onChange={(e) => setNewTagInput(e.target.value)}
-                                placeholder="새 태그"
-                                className="trip-tag-input"
-                            />
-                            <button type="submit" className="btn btn-ghost btn-sm" title="추가">
-                                <Plus size={14} />
+                    <TaxonomyEditor
+                        icon={<Tag size={14} />}
+                        label="태그"
+                        placeholder="새 태그"
+                        items={currentTags}
+                        onPersist={persistTags}
+                        onRename={handleRenameTag}
+                        emptyAction={
+                            <button
+                                type="button"
+                                className="btn btn-ghost btn-sm"
+                                onClick={() => persistTags([...DEFAULT_TAGS])}
+                            >
+                                기본 태그 추가 ({DEFAULT_TAGS.map(t => t.name).join(', ')})
                             </button>
-                        </form>
-                    </div>
+                        }
+                    />
+
+                    {/* 지역: '고성·속초·아사쿠사' 같은 구역. 위시리스트를 이걸로 묶는다.
+                        기본 시드는 없다 — 여행마다 완전히 다르다. */}
+                    <TaxonomyEditor
+                        icon={<MapIcon size={14} />}
+                        label="지역"
+                        placeholder="새 지역 (예: 고성)"
+                        items={currentAreas}
+                        onPersist={persistAreas}
+                        onRename={handleRenameArea}
+                    />
                 </div>
 
                 <div className="admin-actions">
@@ -689,6 +607,7 @@ export default function AdminView({ dbData, refreshDb, selectedTripId: initialTr
                     onSave={handleSaveCandidate}
                     onDelete={handleDeleteCandidate}
                     availableTags={currentTags}
+                    availableAreas={currentAreas}
                 />
             )}
         </div>

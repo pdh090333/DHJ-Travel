@@ -1,8 +1,11 @@
 // Database layer using Firebase Firestore
 //
 // Schema:
-// Trip = { id, title, startDate, endDate, tags: {name, color}[] }
-// Activity = { id, tripId, date, startTime, endTime, title, departure, arrival, departureUrl, arrivalUrl, notes, imageUrl, reviewUrl, tag }
+// Trip = { id, title, startDate, endDate, tags: {name, color}[], areas: {name, color}[] }
+//   - `areas` 는 '고성·속초·아사쿠사' 같은 구역. tags 와 완전히 같은 모양이라
+//     normalizeTags / resolveTaxonomyColor / COLOR_PALETTE 를 공유한다.
+//     기본 시드는 두지 않는다 — 지역은 여행마다 완전히 다르다.
+// Activity = { id, tripId, date, startTime, endTime, title, departure, arrival, departureUrl, arrivalUrl, notes, imageUrl, reviewUrl, tag, area }
 //   - `departure`/`departureUrl` no longer collected via UI; existing values are still
 //     displayed in itinerary view. Color is derived from the tag, not stored on the activity.
 //   - `arrival` is no longer a separate input — ActivityModal sets it to `title` on save.
@@ -10,7 +13,7 @@
 //     (prev.arrival → next departure), and CSV export still ships an `arrival` column for
 //     backward compatibility. Older records where arrival ≠ title keep their value until
 //     the activity is edited.
-// Candidate = { id, tripId, title, url, notes, imageUrl, tag }
+// Candidate = { id, tripId, title, url, notes, imageUrl, tag, area }
 //   - CandidateModal 이 추가/수정을 모두 처리한다. saveCandidate 는 setDoc 전체
 //     덮어쓰기라 기존 id 로 호출하면 그대로 update 가 된다.
 //   - `tag` 는 Activity.tag 와 같은 의미(Trip.tags 의 name 참조)라
@@ -45,11 +48,16 @@ export const normalizeTags = (raw) =>
         typeof t === 'string' ? { name: t, color: DEFAULT_TAG_COLOR } : t
     );
 
-export const resolveActivityColor = (activity, tripTags) => {
-    if (!activity?.tag) return null;
-    const tag = normalizeTags(tripTags).find(t => t.name === activity.tag);
-    return tag?.color || null;
+// 이름으로 taxonomy 항목의 색을 찾는다. 태그와 지역이 같은 모양이라 공용이다.
+export const resolveTaxonomyColor = (name, list) => {
+    if (!name) return null;
+    const found = normalizeTags(list).find(t => t.name === name);
+    return found?.color || null;
 };
+
+// 기존 호출부 호환용 wrapper. 후보지에도 그대로 쓴다(둘 다 `.tag` 를 가진다).
+export const resolveActivityColor = (activity, tripTags) =>
+    resolveTaxonomyColor(activity?.tag, tripTags);
 
 import {
     collection, getDocs, doc, setDoc, deleteDoc,

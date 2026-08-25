@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { Star, ExternalLink, Calendar } from 'lucide-react';
-import { resolveActivityColor } from '../db';
+import { Star, ExternalLink, Calendar, ChevronDown, ChevronRight } from 'lucide-react';
+import { resolveActivityColor, resolveTaxonomyColor, normalizeTags } from '../db';
 import './ItineraryView.css';
 
 const WEEKDAYS = ['일', '월', '화', '수', '목', '금', '토'];
@@ -47,6 +47,28 @@ export default function ItineraryView({ dbData, selectedTripId }) {
     const allDates = tripDates.length > 0 ? tripDates : activityDates;
 
     const [selectedDate, setSelectedDate] = useState('all');
+    const [expandedCandidate, setExpandedCandidate] = useState(null);
+
+    // ─── 위시리스트 지역별 그룹 ────────────────────────────
+    // 순서는 Trip.areas 배열 순서를 따른다(가나다순 아님 — 사용자가 통제).
+    // 지역 미지정은 맨 뒤로.
+    const tripCandidates = (dbData.candidates || []).filter(c => c.tripId === selectedTripId);
+    const tripAreas = normalizeTags(currentTrip?.areas);
+    const candidateGroups = [
+        ...tripAreas.map(a => ({
+            key: a.name,
+            name: a.name,
+            color: a.color,
+            items: tripCandidates.filter(c => c.area === a.name)
+        })),
+        {
+            key: '__none__',
+            name: '지역 없음',
+            color: null,
+            // 지역이 비었거나, 삭제된 지역을 참조 중인 것도 여기로 모은다
+            items: tripCandidates.filter(c => !tripAreas.some(a => a.name === c.area))
+        }
+    ].filter(g => g.items.length > 0);
 
     useEffect(() => {
         if (selectedDate !== 'all' && !allDates.includes(selectedDate)) {
@@ -278,44 +300,75 @@ export default function ItineraryView({ dbData, selectedTripId }) {
                 )}
             </div>
 
-            {dbData.candidates && dbData.candidates.filter(c => c.tripId === selectedTripId).length > 0 && (
+            {tripCandidates.length > 0 && (
                 <div className="wishlist-section">
                     <div className="wishlist-header">
                         <Star size={20} className="wishlist-icon" />
                         <h2>가고 싶은 곳 (Wishlist)</h2>
+                        <span className="wishlist-count">{tripCandidates.length}곳</span>
                     </div>
-                    <div className="wishlist-grid">
-                        {dbData.candidates
-                            .filter(c => c.tripId === selectedTripId)
-                            .map(candidate => (
-                                <div
-                                    key={candidate.id}
-                                    className="wishlist-card"
-                                    style={(() => {
-                                        const c = resolveActivityColor(candidate, currentTrip?.tags);
-                                        return c ? { '--activity-color': c } : undefined;
-                                    })()}
-                                >
-                                    <div className="wishlist-card-content">
-                                        <h4>
-                                            {candidate.tag && <span className="activity-tag">{candidate.tag}</span>}
-                                            {candidate.title}
-                                        </h4>
-                                        {candidate.imageUrl && (
-                                            <div className="wishlist-thumbnail-card">
-                                                <img src={candidate.imageUrl} alt={candidate.title} />
+
+                    {candidateGroups.map(group => (
+                        <section key={group.key} className="wishlist-group">
+                            <h3
+                                className="wishlist-group-header"
+                                style={group.color ? { '--area-color': group.color } : undefined}
+                            >
+                                <span className="wishlist-group-name">{group.name}</span>
+                                <span className="wishlist-group-count">{group.items.length}</span>
+                            </h3>
+                            <ul className="wishlist-list">
+                                {group.items.map(candidate => {
+                                    const tagColor = resolveActivityColor(candidate, currentTrip?.tags);
+                                    const open = expandedCandidate === candidate.id;
+                                    const hasDetail = !!(candidate.imageUrl || candidate.notes);
+                                    return (
+                                        <li
+                                            key={candidate.id}
+                                            className="wishlist-row"
+                                            style={tagColor ? { '--activity-color': tagColor } : undefined}
+                                        >
+                                            <div className="wishlist-row-main">
+                                                <button
+                                                    type="button"
+                                                    className="wishlist-row-toggle"
+                                                    onClick={() => setExpandedCandidate(open ? null : candidate.id)}
+                                                    aria-expanded={open}
+                                                    title={hasDetail ? (open ? '접기' : '사진·메모 보기') : '상세 정보 없음'}
+                                                >
+                                                    {open ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
+                                                    {candidate.tag && <span className="activity-tag">{candidate.tag}</span>}
+                                                    <span className="wishlist-row-title">{candidate.title}</span>
+                                                </button>
+                                                {candidate.area && (
+                                                    <span
+                                                        className="wishlist-area-badge"
+                                                        style={{ background: resolveTaxonomyColor(candidate.area, currentTrip?.areas) || 'var(--text-secondary)' }}
+                                                    >{candidate.area}</span>
+                                                )}
+                                                {candidate.url && (
+                                                    <a href={candidate.url} target="_blank" rel="noopener noreferrer"
+                                                       className="wishlist-link" title="지도에서 보기">
+                                                        <ExternalLink size={15} />
+                                                    </a>
+                                                )}
                                             </div>
-                                        )}
-                                        {candidate.notes && <p className="wishlist-notes">{candidate.notes}</p>}
-                                    </div>
-                                    {candidate.url && (
-                                        <a href={candidate.url} target="_blank" rel="noopener noreferrer" className="wishlist-link">
-                                            <ExternalLink size={16} />
-                                        </a>
-                                    )}
-                                </div>
-                            ))}
-                    </div>
+                                            {open && hasDetail && (
+                                                <div className="wishlist-row-detail">
+                                                    {candidate.imageUrl && (
+                                                        <div className="wishlist-thumbnail-card">
+                                                            <img src={candidate.imageUrl} alt={candidate.title} />
+                                                        </div>
+                                                    )}
+                                                    {candidate.notes && <p className="wishlist-notes">{candidate.notes}</p>}
+                                                </div>
+                                            )}
+                                        </li>
+                                    );
+                                })}
+                            </ul>
+                        </section>
+                    ))}
                 </div>
             )}
         </div>

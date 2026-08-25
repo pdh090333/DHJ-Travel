@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { Star, Info, ChevronDown, ChevronUp } from 'lucide-react';
 import { extractDirectImageUrl } from '../utils/imageUtils';
+import TaxonomySelect from './TaxonomySelect';
 import './ActivityModal.css';
 
-export default function ActivityModal({ activity, onClose, onSave, onDelete, onMoveToCandidates, availableTags = [] }) {
+export default function ActivityModal({ activity, onClose, onSave, onDelete, onMoveToCandidates, availableTags = [], availableAreas = [] }) {
     const [formData, setFormData] = useState({
         title: '',
         date: '',
@@ -16,7 +17,8 @@ export default function ActivityModal({ activity, onClose, onSave, onDelete, onM
         notes: '',
         imageUrl: '',
         reviewUrl: '',
-        tag: ''
+        tag: '',
+        area: ''
     });
 
     // Image URL and Google review link are folded behind a toggle since
@@ -36,20 +38,12 @@ export default function ActivityModal({ activity, onClose, onSave, onDelete, onM
                 notes: activity.notes || '',
                 imageUrl: activity.imageUrl || '',
                 reviewUrl: activity.reviewUrl || '',
-                tag: activity.tag || ''
+                tag: activity.tag || '',
+                area: activity.area || ''
             });
             setShowExtras(!!(activity.imageUrl || activity.reviewUrl));
         }
     }, [activity]);
-
-    // availableTags arrives as [{name, color}, ...]. The dropdown only needs names.
-    const tagNames = availableTags.map(t => t?.name || t);
-    // If the saved tag is no longer in the trip's tag list (e.g. it was
-    // deleted from the taxonomy), keep it as an option so the dropdown
-    // doesn't silently drop the value.
-    const tagOptions = formData.tag && !tagNames.includes(formData.tag)
-        ? [...tagNames, formData.tag]
-        : tagNames;
 
     const handleChange = (e) => {
         const { name, value } = e.target;
@@ -98,15 +92,10 @@ export default function ActivityModal({ activity, onClose, onSave, onDelete, onM
                     </div>
 
                     <div className="form-row">
-                        <div className="form-group" style={{ flex: '0 0 8rem' }}>
-                            <label>태그</label>
-                            <select name="tag" value={formData.tag} onChange={handleChange}>
-                                <option value="">(없음)</option>
-                                {tagOptions.map(t => (
-                                    <option key={t} value={t}>{t}</option>
-                                ))}
-                            </select>
-                        </div>
+                        <TaxonomySelect label="태그" name="tag" value={formData.tag}
+                            options={availableTags} onChange={handleChange} width="7rem" />
+                        <TaxonomySelect label="지역" name="area" value={formData.area}
+                            options={availableAreas} onChange={handleChange} width="7rem" />
                         <div className="form-group">
                             <label>일정 제목</label>
                             <input type="text" name="title" value={formData.title} onChange={handleChange} placeholder="비행기 탑승, 호텔 체크인 등" required />

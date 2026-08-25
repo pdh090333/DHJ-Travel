@@ -151,7 +151,8 @@ export default function CalendarView({ dbData, selectedTripId, refreshDb, onDrag
             date: local.toISOString().split('T')[0],
             startTime: local.toISOString().slice(11, 16),
             endTime: new Date(local.getTime() + 3600000).toISOString().slice(11, 16),
-            title: '', departure: '', arrival: '', departureUrl: '', arrivalUrl: '', notes: ''
+            title: '', departure: '', arrival: '', departureUrl: '', arrivalUrl: '', notes: '',
+            tag: '', area: ''
         });
     };
 
@@ -186,7 +187,8 @@ export default function CalendarView({ dbData, selectedTripId, refreshDb, onDrag
             endTime: new Date(local.getTime() + 3600000).toISOString().slice(11, 16),
             departure: '', arrival: candidateData.title, departureUrl: '',
             arrivalUrl: candidateData.url || '', notes: candidateData.notes || '',
-            imageUrl: candidateData.imageUrl || '', tag: candidateData.tag || ''
+            imageUrl: candidateData.imageUrl || '', tag: candidateData.tag || '',
+            area: candidateData.area || ''
         };
         try {
             const { deleteCandidate } = await import('../db');
@@ -383,6 +385,7 @@ export default function CalendarView({ dbData, selectedTripId, refreshDb, onDrag
                     onSave={handleSaveModal} onDelete={handleDeleteModal}
                     onMoveToCandidates={() => onUnschedule(selectedTripId, selectedActivity.id)}
                     availableTags={normalizeTags(currentTrip?.tags)}
+                    availableAreas={normalizeTags(currentTrip?.areas)}
                 />
             )}
         </div>
